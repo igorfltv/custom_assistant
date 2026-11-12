@@ -1,0 +1,12 @@
+[submodule "backend"]
+	path = backend
+	url = https://github.com/igorfltv/custom_assistant-backend.git
+[submodule "landing"]
+	path = landing
+	url = https://github.com/igorfltv/custom_assistant-landing.git
+[submodule "workspace"]
+	path = workspace
+	url = https://github.com/igorfltv/custom_assistant-workspace.git
+[submodule "admin"]
+	path = admin
+	url = https://github.com/igorfltv/custom_assistant-admin.git

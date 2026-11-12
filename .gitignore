@@ -1,0 +1,16 @@
+.env
+.env.*
+.release.env
+!.env.example
+.local/
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+data/
+node_modules/
+dist/
+.DS_Store
+coverage/
+*.tsbuildinfo
+knowledge/snapshots/

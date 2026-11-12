@@ -1,0 +1,17 @@
+{
+  "name": "forma-platform",
+  "private": true,
+  "workspaces": [
+    "packages/ui",
+    "landing",
+    "workspace",
+    "admin"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace @forma/landing && npm run build --workspace @forma/workspace && npm run build --workspace @forma/admin",
+    "format": "prettier --write \"{packages,landing,workspace,admin}/**/*.{ts,tsx,css,json,html}\""
+  },
+  "devDependencies": {
+    "prettier": "3.10.1"
+  }
+}

@@ -1,0 +1,106 @@
+name: forma
+x-backend: &backend
+  image: forma-backend:${RELEASE_TAG:-local}
+  build:
+    context: .
+    dockerfile: deploy/backend.Dockerfile
+  environment: &environment
+    DATABASE_URL: postgresql+psycopg://forma:${POSTGRES_PASSWORD}@postgres:5432/forma
+    REDIS_URL: redis://redis:6379/0
+    ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Run scripts/deploy-local.sh first}
+    ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@forma.local}
+    ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Run scripts/deploy-local.sh first}
+    DATA_DIR: /app/data
+    PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:18761}
+    COOKIE_SECURE: ${COOKIE_SECURE:-false}
+  volumes: [documents:/app/data]
+  restart: unless-stopped
+  init: true
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: forma
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/deploy-local.sh first}
+      POSTGRES_DB: forma
+    volumes: [postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U forma -d forma"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+  redis:
+    image: redis:7-alpine
+    command: [redis-server, --appendonly, "yes"]
+    volumes: [redis:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+  backend:
+    <<: *backend
+    healthcheck:
+      test:
+        [
+          CMD,
+          python,
+          -c,
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')",
+        ]
+      interval: 5s
+      retries: 30
+  worker:
+    <<: *backend
+    command: [rq, worker, analysis, --url, redis://redis:6379/0]
+    depends_on:
+      backend: { condition: service_healthy }
+  knowledge-sync:
+    <<: *backend
+    command: [python, -m, app.knowledge, --watch]
+    depends_on:
+      backend: { condition: service_healthy }
+  landing:
+    image: forma-landing:${RELEASE_TAG:-local}
+    build:
+      {
+        context: .,
+        dockerfile: deploy/frontend.Dockerfile,
+        args: { APP_NAME: landing },
+      }
+    restart: unless-stopped
+  workspace:
+    image: forma-workspace:${RELEASE_TAG:-local}
+    build:
+      {
+        context: .,
+        dockerfile: deploy/frontend.Dockerfile,
+        args: { APP_NAME: workspace },
+      }
+    restart: unless-stopped
+  admin:
+    image: forma-admin:${RELEASE_TAG:-local}
+    build:
+      {
+        context: .,
+        dockerfile: deploy/frontend.Dockerfile,
+        args: { APP_NAME: admin },
+      }
+    restart: unless-stopped
+  gateway:
+    image: nginx:1.28-alpine
+    ports: ["127.0.0.1:${APP_PORT:-18761}:8080"]
+    volumes: ["./deploy/gateway.conf:/etc/nginx/conf.d/default.conf:ro"]
+    depends_on:
+      backend: { condition: service_healthy }
+      landing: { condition: service_started }
+      workspace: { condition: service_started }
+      admin: { condition: service_started }
+    restart: unless-stopped
+volumes:
+  postgres:
+  redis:
+  documents:
