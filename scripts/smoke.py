@@ -2,15 +2,33 @@
 from pathlib import Path
 import urllib.request
 import json
+import re
+import time
 
 root = Path(__file__).resolve().parents[1]
 values = dict(line.split("=", 1) for line in (root/".env").read_text().splitlines() if line and not line.startswith("#"))
 url = "http://127.0.0.1:"+values.get("APP_PORT", "18761")
 for path in ["/", "/workspace/", "/admin/", "/api/health"]:
-    with urllib.request.urlopen(url+path, timeout=20) as response:
-        assert response.status == 200
-        if path == "/api/health":
-            assert json.load(response)["status"] == "ok"
-        else:
-            assert b'root' in response.read()
-    print("PASS", path)
+    for attempt in range(5):
+        try:
+            with urllib.request.urlopen(url+path, timeout=20) as response:
+                assert response.status == 200
+                if path == "/api/health":
+                    assert json.load(response)["status"] == "ok"
+                else:
+                    html = response.read().decode()
+                    assert 'id="root"' in html
+                    assets = re.findall(r'(?:src|href)="([^"]+/assets/[^\"]+|/assets/[^\"]+)"', html)
+                    assert assets, "No application assets found"
+                    assert all(asset.startswith(path+"assets/") for asset in assets), "Wrong application routed to this path"
+                    for asset in assets:
+                        with urllib.request.urlopen(url+asset, timeout=20) as loaded:
+                            assert loaded.status == 200
+                            assert "text/html" not in loaded.headers.get("Content-Type", ""), "Asset returned HTML"
+                            assert loaded.read(), "Empty application asset"
+            print("PASS", path, "and application assets" if path != "/api/health" else "")
+            break
+        except Exception:
+            if attempt == 4:
+                raise
+            time.sleep(2)

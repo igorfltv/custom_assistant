@@ -15,5 +15,7 @@ python3 scripts/init-env.py
 docker compose config --quiet
 docker compose build
 docker compose up --detach --wait --wait-timeout 180
+# Refresh the bind-mounted proxy configuration, including on an in-place upgrade.
+docker compose up --detach --force-recreate --no-deps gateway
 python3 scripts/smoke.py
 printf '\nReady. Credentials: %s/.local/admin-credentials.txt\n' "$ROOT_DIR"
