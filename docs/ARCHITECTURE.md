@@ -1,6 +1,7 @@
 # Архитектура
 
-Браузер → gateway → landing / workspace / admin / Python API.
+Браузер → публичный Caddy HTTP → gateway → landing / workspace / admin / Python API.
+Локальный запуск обращается к gateway напрямую на localhost.
 API → PostgreSQL (учётные записи, декларации, профиль, аудит).
 API → Redis/RQ → worker → провайдеры OCR и LLM.
 API и worker → persistent documents volume.
@@ -25,8 +26,9 @@ knowledge-sync → разрешённые публичные URLs → архив
 
 ## Хранение и запуск
 
-Postgres и Redis не публикуют порты. Внешний порт gateway привязан к loopback.
-Доступ к VM без домена — SSH-туннель. Cookie HttpOnly/SameSite=Strict,
+Postgres и Redis не публикуют порты. Порт gateway привязан к loopback.
+Отдельный Compose-проект Caddy публикует порт 80. HTTPS отключён по решению владельца.
+Cookie HttpOnly/SameSite=Strict; COOKIE_SECURE=false для HTTP-прототипа,
 проверка Origin у изменяющих запросов, Argon2-пароли, Fernet-ключи провайдеров.
 ENCRYPTION_KEY должен сохраняться вместе с резервными копиями, иначе ключи API
 невозможно расшифровать. .env и данные не включаются в Git и Docker build context.

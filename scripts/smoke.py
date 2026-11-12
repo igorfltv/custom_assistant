@@ -4,10 +4,17 @@ import urllib.request
 import json
 import re
 import time
+import argparse
 
-root = Path(__file__).resolve().parents[1]
-values = dict(line.split("=", 1) for line in (root/".env").read_text().splitlines() if line and not line.startswith("#"))
-url = "http://127.0.0.1:"+values.get("APP_PORT", "18761")
+parser = argparse.ArgumentParser()
+parser.add_argument("--base-url", help="Explicit deployment URL; HTTPS certificates are verified")
+args = parser.parse_args()
+if args.base_url:
+    url = args.base_url.rstrip("/")
+else:
+    root = Path(__file__).resolve().parents[1]
+    values = dict(line.split("=", 1) for line in (root/".env").read_text().splitlines() if line and not line.startswith("#"))
+    url = "http://127.0.0.1:"+values.get("APP_PORT", "18761")
 for path in ["/", "/workspace/", "/admin/", "/api/health"]:
     for attempt in range(5):
         try:

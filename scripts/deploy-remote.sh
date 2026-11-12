@@ -60,5 +60,10 @@ compose up -d --wait --wait-timeout 180
 python3 scripts/smoke.py
 ln -sfn "$RELEASE_DIR" "$SHARED_DIR/current"
 trap - ERR
+python3 - <<'PY'
+from pathlib import Path
+values = dict(line.split('=', 1) for line in Path('.env').read_text().splitlines() if line and not line.startswith('#'))
+print('Application origin:', values['PUBLIC_ORIGIN'])
+PY
 REMOTE
-printf '\nDeployment verified. Open the SSH tunnel with scripts/tunnel.sh.\n'
+printf '\nDeployment verified. See docs/DEPLOYMENT.md for public access setup.\n'

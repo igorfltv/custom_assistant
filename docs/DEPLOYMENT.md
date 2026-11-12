@@ -14,13 +14,35 @@ SSH_KEY=/path/to/private-key \
 SSH_KNOWN_HOSTS=/path/to/known_hosts \
 ./scripts/deploy-remote.sh
 
-./scripts/tunnel.sh
+./scripts/enable-public-access.sh
 ```
 
-Адрес после открытия туннеля: http://localhost:18761/.
-Остановите локальную копию или выберите согласованные порты, чтобы не занять
-порт туннеля. Если TUNNEL_PORT отличается от 18761, PUBLIC_ORIGIN на VM должен
-совпадать с фактическим localhost URL, иначе защита Origin отклонит запросы.
+Публичные адреса:
+
+- http://89.232.170.118/ — сайт;
+- http://89.232.170.118/workspace/ — кабинет;
+- http://89.232.170.118/admin/ — админка.
+
+Второй скрипт публикует уже установленную версию. Он не загружает и не собирает
+исходники приложений, сохраняет данные и ключи, задаёт HTTP origin.
+Отдельный Compose-проект `forma-public` запускает Caddy на порту 80.
+По явному решению владельца прототип работает без HTTPS и перенаправлений;
+PUBLIC_ORIGIN=http://89.232.170.118, COOKIE_SECURE=false.
+Проверка скрипта проверяет публичные страницы вместе с JS/CSS.
+
+В Cloud.ru дополнительно разрешите входящий трафик: TCP, порт 80,
+тип источника «IP-адрес», источник 0.0.0.0/0. Назначенную группу можно найти
+в карточке ВМ → «Сетевые параметры» у интерфейса с публичным IP;
+откройте её → «Правила» → «Правила входящего трафика» → «Добавить правило».
+Существующее правило SSH 22 сохраняется.
+См. [инструкцию Cloud.ru](https://cloud.ru/docs/security-groups/ug/topics/guides__add-sg-rule).
+
+Последующие `deploy-remote.sh` сохраняют публичную конфигурацию. Публичный прокси
+остаётся в `/home/filatov/forma/public`, независимо от каталогов релизов.
+
+`scripts/tunnel.sh` остаётся для служебного доступа к внутреннему gateway.
+В публичном режиме вход выполняется по HTTP-адресу выше: Origin и cookies
+настроены на него. Локальный запуск через `deploy-local.sh` использует собственный `.env`.
 
 Скрипт использует только SSH-ключ. GitHub-токен на сервер не переносится.
 Bootstrap устанавливает Docker с Compose из официального apt-репозитория на Ubuntu,
@@ -35,6 +57,9 @@ HTTP-проверки скрипт возвращает предыдущий р�
 ```bash
 cd /home/filatov/forma/current
 sudo docker compose --env-file .env --env-file .release.env -p forma ps
+cd /home/filatov/forma/public
+sudo docker compose ps
+sudo docker compose logs --tail 30 edge
 ```
 
 Учётные данные администратора создаются на VM и хранятся в
@@ -47,8 +72,8 @@ sudo docker compose --env-file .env --env-file .release.env -p forma ps
 Файлы резервной копии должны оставаться в защищённом хранилище вне репозиториев.
 Восстановление необходимо проверить отдельно до загрузки реальных документов.
 
-## HTTPS
+## Последующее включение HTTPS
 
-После появления домена настройте TLS на gateway/reverse proxy,
-PUBLIC_ORIGIN=https://domain и COOKIE_SECURE=true. До этого интерфейсы
-доступны только через localhost/SSH, не через публичный HTTP с документами и ключами.
+После решения включить HTTPS потребуется изменить адрес Caddy, добавить порт 443,
+настроить сертификат, PUBLIC_ORIGIN=https://... и COOKIE_SECURE=true.
+Текущий `enable-public-access.sh` явно сохраняет выбранный HTTP-режим.

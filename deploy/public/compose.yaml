@@ -1,0 +1,22 @@
+name: forma-public
+services:
+  edge:
+    image: caddy:2.11.9-alpine
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST}
+    ports:
+      - "0.0.0.0:80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - certificates:/data
+      - config:/config
+    networks: [application]
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+networks:
+  application:
+    external: true
+    name: forma_default
+volumes:
+  certificates:
+  config:
