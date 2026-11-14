@@ -291,6 +291,7 @@ export function Shell({
   const items = adminMode
     ? [
         ["/models", "Модели и провайдеры", Settings2],
+        ["/companies", "Компании", Files],
         ["/team", "Сотрудники", Users],
         ["/stats", "Статистика", ChartNoAxesCombined],
       ]
@@ -388,3 +389,5 @@ export function Shell({
     </div>
   );
 }
+
+export { ContextFields, type ContextField, type ContextSchema } from "./ContextFields";
