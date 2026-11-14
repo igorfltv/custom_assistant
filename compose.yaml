@@ -13,6 +13,10 @@ x-backend: &backend
     DATA_DIR: /app/data
     PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:18761}
     COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    KNOWLEDGE_INTERVAL_SECONDS: ${KNOWLEDGE_INTERVAL_SECONDS:-86400}
+    KNOWLEDGE_POLL_SECONDS: ${KNOWLEDGE_POLL_SECONDS:-300}
+    KNOWLEDGE_BATCH_SIZE: ${KNOWLEDGE_BATCH_SIZE:-250}
+    KNOWLEDGE_REQUEST_DELAY: ${KNOWLEDGE_REQUEST_DELAY:-1.0}
   volumes: [documents:/app/data]
   restart: unless-stopped
   init: true

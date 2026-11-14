@@ -278,12 +278,14 @@ export function Shell({
   onLogout,
   active,
   adminMode = false,
+  focusMode = false,
   children,
 }: {
   user: User;
   onLogout: () => void;
   active: string;
   adminMode?: boolean;
+  focusMode?: boolean;
   children: ReactNode;
 }) {
   const items = adminMode
@@ -297,7 +299,7 @@ export function Shell({
         ["/knowledge", "База знаний", BookOpen],
       ];
   return (
-    <div className="app-shell">
+    <div className={"app-shell" + (focusMode ? " focus-mode" : "")}>
       <aside className="sidebar">
         <Brand />
         <div className="org">
@@ -364,20 +366,24 @@ export function Shell({
         </div>
       </aside>
       <div className="app-main">
-        <header className="topbar">
-          <span>
-            Форма <span className="muted">/</span>{" "}
-            {adminMode ? "Управление" : "Кабинет специалиста"}
-          </span>
-          <span className="prototype-tag">
-            Прототип <span>0.1</span>
-          </span>
-        </header>
+        {!focusMode && (
+          <header className="topbar">
+            <span>
+              Форма <span className="muted">/</span>{" "}
+              {adminMode ? "Управление" : "Кабинет специалиста"}
+            </span>
+            <span className="prototype-tag">
+              Прототип <span>0.1</span>
+            </span>
+          </header>
+        )}
         <main className="content">{children}</main>
-        <footer className="app-footer">
-          <span>Форма · Рабочее пространство декларанта</span>
-          <span>Импорт в РФ · Декларация на товары</span>
-        </footer>
+        {!focusMode && (
+          <footer className="app-footer">
+            <span>Форма · Рабочее пространство декларанта</span>
+            <span>Импорт и экспорт · Декларация на товары</span>
+          </footer>
+        )}
       </div>
     </div>
   );
