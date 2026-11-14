@@ -36,13 +36,14 @@ def main():
     parser.add_argument('--key-file',type=Path)
     parser.add_argument('--case',action='append')
     parser.add_argument('--ledger-only',action='store_true',help='Diagnostic checkpoint only; no XML or reference comparison')
+    parser.add_argument('--model-cache',type=Path,help='Shared content-addressed response cache; prompts and model configuration are hashed')
     args=parser.parse_args()
     os.umask(0o077)
     code_hash=hashlib.sha256(b''.join(p.read_bytes() for p in sorted((ROOT/'agent/src/forma_declaration_agent').glob('*.py')))+(ROOT/'backend/app/providers.py').read_bytes()).hexdigest()
     key=args.key_file.read_text().strip() if args.key_file else os.environ['DEEPSEEK_API_KEY']
     connection={'base_url':'https://api.deepseek.com/v1','secret':key}
     args.output.mkdir(parents=True,exist_ok=True)
-    response_cache=args.output/'model-cache';response_cache.mkdir(exist_ok=True)
+    response_cache=args.model_cache or args.output/'model-cache';response_cache.mkdir(parents=True,exist_ok=True)
     results=[]
     for folder in sorted((args.cache/'extracted').iterdir()):
         if args.case and folder.name not in args.case: continue
@@ -98,7 +99,7 @@ def main():
             report={'case':folder.name,'status':'failed','error':type(exc).__name__+': '+str(exc)[:500],'input_manifest':manifest,'input_errors':errors}
         report.update(generated_at=datetime.now(timezone.utc).isoformat(),pipeline_sha256=code_hash)
         (case_out/'report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2));results.append(report)
-        summary={k:v for k,v in report.get('comparison',{}).items() if k not in {'differences','scope'}}
+        summary={k:v for k,v in report.get('comparison',{}).items() if k in {'actual_items','expected_items','header_matches','hs_code_multiset_matches','xml_equal','field_counts'}}
         print(json.dumps({'case':folder.name,'status':report['status'],'comparison':summary,'error':report.get('error')},ensure_ascii=False),flush=True)
     results=[json.loads(path.read_text()) for path in sorted(args.output.glob('*/report.json'))]
     (args.output/'report.json').write_text(json.dumps(results,ensure_ascii=False,indent=2))
