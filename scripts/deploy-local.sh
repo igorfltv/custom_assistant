@@ -8,7 +8,7 @@ docker info >/dev/null 2>&1 || { echo 'Start Docker before deployment.' >&2; exi
 if [[ -f .gitmodules ]]; then
   git submodule update --init --recursive
 fi
-for component in backend landing workspace admin; do
+for component in backend agent landing workspace admin; do
   [[ -f "$component/README.md" ]] || { echo "Missing component: $component" >&2; exit 1; }
 done
 python3 scripts/init-env.py

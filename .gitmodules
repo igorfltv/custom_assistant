@@ -10,3 +10,6 @@
 [submodule "admin"]
 	path = admin
 	url = https://github.com/igorfltv/custom_assistant-admin.git
+[submodule "agent"]
+	path = agent
+	url = https://github.com/igorfltv/custom_assistant-agent.git

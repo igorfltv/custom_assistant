@@ -8,7 +8,8 @@
 | Каталог | Репозиторий | Назначение |
 |---|---|---|
 | корень | `igorfltv/custom_assistant` | Оркестрация, deploy, общие UI-примитивы, документация |
-| backend | `igorfltv/custom_assistant-backend` | Python API, документы, очередь, модели, проверки |
+| backend | `igorfltv/custom_assistant-backend` | Python API, хранение, очередь, подключение провайдеров |
+| agent | `igorfltv/custom_assistant-agent` | Извлечение текста, анализ документов, проверки, уточняющие вопросы и архив нормативных источников |
 | landing | `igorfltv/custom_assistant-landing` | Публичный сайт |
 | workspace | `igorfltv/custom_assistant-workspace` | Кабинет специалиста |
 | admin | `igorfltv/custom_assistant-admin` | Настройки, сотрудники, статистика |
@@ -93,8 +94,9 @@ XLS следует приложить отдельно; DOC нужно пред�
 ## Проверка
 
 ```bash
-cd backend && uv sync --frozen && uv run --frozen pytest -q
-cd .. && npm ci && npm run build
+uv run --directory agent --locked pytest -q
+uv run --directory backend --locked pytest -q
+npm ci && npm run build
 ./scripts/deploy-local.sh
 ```
 
