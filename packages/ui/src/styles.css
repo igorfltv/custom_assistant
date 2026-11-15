@@ -955,10 +955,208 @@ tbody tr.clickable:hover {
   }
 }
 
-.context-form fieldset, .context-adjustment { border: 1px solid var(--line, #dedbd5); border-radius: 12px; padding: 16px; margin: 16px 0; min-width: 0; }
-.context-form legend { font-weight: 600; padding: 0 6px; }
-.context-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
-.context-form-grid input { min-width: 0; }
-.modal label.context-checkbox { display: flex; flex-direction: row; align-items: center; gap: 10px; margin-top: 16px; }
-.modal label.context-checkbox input { width: auto; }
-@media (max-width: 640px) { .context-form-grid { grid-template-columns: 1fr; } }
+.context-form fieldset,
+.context-adjustment {
+  border: 1px solid var(--line, #dedbd5);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+  min-width: 0;
+}
+.context-form legend {
+  font-weight: 600;
+  padding: 0 6px;
+}
+.context-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+}
+.context-form-grid input {
+  min-width: 0;
+}
+.modal label.context-checkbox {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+.modal label.context-checkbox input {
+  width: auto;
+}
+@media (max-width: 640px) {
+  .context-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Shared interaction and navigation states. */
+:root {
+  --muted: #706f67;
+}
+:where(a, button, summary, [tabindex]):focus-visible {
+  outline: 3px solid #a14a2e;
+  outline-offset: 3px;
+}
+input[type="checkbox"] {
+  width: auto;
+  accent-color: #416e54;
+}
+.load-error {
+  display: grid;
+  gap: 12px;
+  padding: 16px 0;
+  justify-items: start;
+}
+.form-hint {
+  color: #706f67;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.modal h2 {
+  overflow-wrap: anywhere;
+}
+.modal .section-head {
+  align-items: flex-start;
+}
+.modal .section-head .icon-button {
+  flex-shrink: 0;
+}
+.modal {
+  overscroll-behavior: contain;
+}
+.skip-link {
+  position: fixed;
+  top: -100px;
+  left: 16px;
+  z-index: 100;
+  padding: 12px;
+  background: #fff;
+}
+.skip-link:focus {
+  top: 12px;
+}
+.mobile-appbar {
+  display: none;
+}
+.mobile-account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+  margin-top: 20px;
+  font-size: 13px;
+}
+.mobile-account small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.mobile-account > span {
+  min-width: 0;
+}
+.context-checkbox {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+}
+.context-form-grid {
+  gap: 16px;
+}
+.context-form fieldset {
+  margin: 0 0 18px;
+}
+.context-form legend {
+  font-size: 13px;
+}
+@media (max-width: 720px) {
+  .app-shell > .sidebar {
+    display: none;
+  }
+  .mobile-appbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 56px;
+    padding: 0 18px;
+    border-bottom: 1px solid var(--line);
+    background: #fff;
+  }
+  .mobile-appbar > span {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .mobile-appbar .icon-button {
+    margin-left: auto;
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .mobile-brand {
+    font-size: 24px;
+    font-weight: 650;
+    letter-spacing: -1px;
+  }
+  .topbar {
+    display: none;
+  }
+  .button {
+    white-space: normal;
+  }
+  .modal-scrim {
+    padding: 12px;
+  }
+  .modal {
+    max-height: 92dvh;
+  }
+}
+@media (max-width: 980px) {
+  .focus-mode .mobile-appbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 48px;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .focus-mode .mobile-appbar > span {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .focus-mode .mobile-appbar .icon-button {
+    margin-left: auto;
+  }
+  .focus-mode .mobile-brand {
+    font-size: 22px;
+    font-weight: 650;
+  }
+  .focus-mode > .app-main {
+    height: calc(100dvh - 48px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+.discard-confirm {
+  display: grid;
+  gap: 18px;
+}
+.discard-confirm p {
+  color: var(--muted);
+  font-size: 13px;
+}
+.discard-confirm .row {
+  flex-wrap: wrap;
+}

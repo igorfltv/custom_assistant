@@ -1,4 +1,4 @@
-import React, { useEffect, useState, type ReactNode } from "react";
+import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ArrowUpRight,
   ArrowRight,
@@ -12,6 +12,9 @@ import {
   LoaderCircle,
   Sparkles,
   ShieldCheck,
+  Menu,
+  LayoutDashboard,
+  RotateCw,
 } from "lucide-react";
 
 export type User = {
@@ -54,6 +57,44 @@ export function useHash() {
   }, []);
   return hash;
 }
+export function useUnsavedChanges(dirty: boolean) {
+  useEffect(() => {
+    if (!dirty) return;
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    const navigate = (event: MouseEvent) => {
+      const link = (event.target as Element).closest<HTMLAnchorElement>(
+        "a[href]",
+      );
+      if (
+        !link ||
+        link.target === "_blank" ||
+        link.download ||
+        link.href === location.href ||
+        link.hash === "#main-content" ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.button !== 0
+      )
+        return;
+      if (
+        !window.confirm("Есть несохранённые изменения. Перейти без сохранения?")
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    document.addEventListener("click", navigate, true);
+    return () => {
+      window.removeEventListener("beforeunload", beforeUnload);
+      document.removeEventListener("click", navigate, true);
+    };
+  }, [dirty]);
+}
 export function Brand({ light = false }: { light?: boolean }) {
   return (
     <a
@@ -70,11 +111,11 @@ export function Brand({ light = false }: { light?: boolean }) {
     </a>
   );
 }
-export function Spinner() {
+export function Spinner({ label = "Загружаем…" }: { label?: string }) {
   return (
-    <div className="loading">
+    <div className="loading" role="status">
       <LoaderCircle className="spin" size={24} />
-      <span>Загружаем рабочее пространство</span>
+      <span>{label}</span>
     </div>
   );
 }
@@ -85,27 +126,123 @@ export function Banner({
   children: ReactNode;
   tone?: string;
 }) {
-  return <div className={"banner " + tone}>{children}</div>;
+  return (
+    <div
+      className={"banner " + tone}
+      role={tone === "error" ? "alert" : "status"}
+    >
+      {children}
+    </div>
+  );
+}
+export function LoadError({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="load-error">
+      <Banner tone="error">{message}</Banner>
+      <button className="button small" onClick={onRetry}>
+        <RotateCw size={15} /> Попробовать снова
+      </button>
+    </div>
+  );
 }
 export function Modal({
   title,
   onClose,
   children,
+  dirty = false,
+  busy = false,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  dirty?: boolean;
+  busy?: boolean;
 }) {
+  useUnsavedChanges(dirty);
+  const container = useRef<HTMLElement>(null);
+  const [confirmClose, setConfirmClose] = useState(false);
+  const stayButton = useRef<HTMLButtonElement>(null);
+  const returnFocus = useRef<HTMLElement | null>(null);
   useEffect(() => {
+    if (confirmClose) stayButton.current?.focus();
+    else if (returnFocus.current?.isConnected) returnFocus.current.focus();
+  }, [confirmClose]);
+  const closeRef = useRef(() => {});
+  closeRef.current = () => {
+    if (busy) return;
+    if (confirmClose) {
+      setConfirmClose(false);
+      return;
+    }
+    if (!dirty) {
+      onClose();
+      return;
+    }
+    returnFocus.current = document.activeElement as HTMLElement | null;
+    setConfirmClose(true);
+  };
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusable = () =>
+      Array.from(
+        container.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
+        ) || [],
+      ).filter((el) => el.getClientRects().length > 0);
+    if (!container.current?.contains(document.activeElement)) {
+      (
+        container.current?.querySelector<HTMLElement>(
+          "input:not([type=hidden]), textarea, select",
+        ) ||
+        focusable()[0] ||
+        container.current
+      )?.focus();
+    }
     const f = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeRef.current();
+      }
+      if (e.key === "Tab") {
+        const nodes = focusable();
+        const first = nodes[0],
+          last = nodes.at(-1);
+        if (!first) {
+          e.preventDefault();
+          container.current?.focus();
+        } else if (
+          e.shiftKey &&
+          (document.activeElement === first ||
+            document.activeElement === container.current)
+        ) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     window.addEventListener("keydown", f);
-    return () => window.removeEventListener("keydown", f);
-  }, [onClose]);
+    return () => {
+      window.removeEventListener("keydown", f);
+      document.body.style.overflow = overflow;
+      if (previous?.isConnected) previous.focus();
+    };
+  }, []);
   return (
-    <div className="modal-scrim" onClick={onClose}>
+    <div className="modal-scrim" onClick={() => closeRef.current()}>
       <section
+        ref={container}
+        tabIndex={-1}
         className="modal"
         role="dialog"
         aria-modal="true"
@@ -116,13 +253,35 @@ export function Modal({
           <h2>{title}</h2>
           <button
             className="icon-button"
-            onClick={onClose}
+            onClick={() => closeRef.current()}
+            disabled={busy}
             aria-label="Закрыть"
           >
             <X size={20} />
           </button>
         </div>
-        {children}
+        <div hidden={confirmClose}>{children}</div>
+        {confirmClose && (
+          <div className="discard-confirm">
+            <h3>Сохранить изменения перед выходом?</h3>
+            <p>
+              Вернитесь к форме, чтобы сохранить данные, или закройте её без
+              сохранения.
+            </p>
+            <div className="row">
+              <button
+                ref={stayButton}
+                className="button primary"
+                onClick={() => setConfirmClose(false)}
+              >
+                Вернуться к форме
+              </button>
+              <button className="button" onClick={onClose}>
+                Закрыть без сохранения
+              </button>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );
@@ -153,7 +312,7 @@ export const statusNames: Record<string, string> = {
   queued: "В очереди",
   processing: "Анализируем",
   review: "На проверке",
-  error: "Нужна помощь",
+  error: "Ошибка обработки",
   completed: "Завершён",
   failed: "Ошибка",
   running: "В работе",
@@ -288,9 +447,21 @@ export function Shell({
   focusMode?: boolean;
   children: ReactNode;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
+  async function logout() {
+    try {
+      await api("/auth/logout", { method: "POST" });
+      onLogout();
+    } catch (e) {
+      setLogoutError((e as Error).message);
+    }
+  }
   const items = adminMode
     ? [
+        ["/", "Обзор", LayoutDashboard],
         ["/models", "Модели и провайдеры", Settings2],
+        ["/knowledge", "База знаний", BookOpen],
         ["/companies", "Компании", Files],
         ["/team", "Сотрудники", Users],
         ["/stats", "Статистика", ChartNoAxesCombined],
@@ -301,6 +472,33 @@ export function Shell({
       ];
   return (
     <div className={"app-shell" + (focusMode ? " focus-mode" : "")}>
+      <a
+        className="skip-link"
+        href="#main-content"
+        onClick={(e) => {
+          e.preventDefault();
+          document.getElementById("main-content")?.focus();
+        }}
+      >
+        К содержимому
+      </a>
+      <div className="mobile-appbar">
+        <a
+          href={adminMode ? "/admin/" : "/workspace/"}
+          className="mobile-brand"
+        >
+          форма<span className="orange">.</span>
+        </a>
+        <span>{adminMode ? "Управление" : "Рабочее пространство"}</span>
+        <button
+          className="icon-button"
+          aria-label="Открыть меню"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen(true)}
+        >
+          <Menu size={21} />
+        </button>
+      </div>
       <aside className="sidebar">
         <Brand />
         <div className="org">
@@ -320,6 +518,7 @@ export function Shell({
               key={url}
               className={"nav-item " + (active === url ? "active" : "")}
               href={"#" + url}
+              aria-current={active === url ? "page" : undefined}
             >
               <Icon size={19} />
               {title}
@@ -353,14 +552,7 @@ export function Shell({
                 {user.role === "admin" ? "Администратор" : "Специалист"}
               </span>
             </div>
-            <button
-              className="icon-button"
-              onClick={async () => {
-                await api("/auth/logout", { method: "POST" });
-                onLogout();
-              }}
-              aria-label="Выйти"
-            >
+            <button className="icon-button" onClick={logout} aria-label="Выйти">
               <LogOut size={17} />
             </button>
           </div>
@@ -378,7 +570,10 @@ export function Shell({
             </span>
           </header>
         )}
-        <main className="content">{children}</main>
+        <main className="content" id="main-content" tabIndex={-1}>
+          {logoutError && <Banner tone="error">{logoutError}</Banner>}
+          {children}
+        </main>
         {!focusMode && (
           <footer className="app-footer">
             <span>Форма · Рабочее пространство декларанта</span>
@@ -386,8 +581,49 @@ export function Shell({
           </footer>
         )}
       </div>
+      {menuOpen && (
+        <Modal title="Навигация" onClose={() => setMenuOpen(false)}>
+          <nav className="mobile-menu">
+            {items.map(([url, title, Icon]: any) => (
+              <a
+                key={url}
+                className={"nav-item " + (active === url ? "active" : "")}
+                href={"#" + url}
+                aria-current={active === url ? "page" : undefined}
+                onClick={() => setMenuOpen(false)}
+              >
+                <Icon size={19} />
+                {title}
+              </a>
+            ))}
+            {user.role === "admin" && (
+              <a
+                className="nav-item"
+                href={adminMode ? "/workspace/" : "/admin/"}
+              >
+                <ArrowUpRight size={19} />
+                {adminMode ? "Кабинет специалиста" : "Администрирование"}
+              </a>
+            )}
+          </nav>
+          <div className="mobile-account">
+            <span>
+              {user.name}
+              <small>{user.email}</small>
+            </span>
+            <button className="button small" onClick={logout}>
+              <LogOut size={16} /> Выйти
+            </button>
+          </div>
+          {logoutError && <Banner tone="error">{logoutError}</Banner>}
+        </Modal>
+      )}
     </div>
   );
 }
 
-export { ContextFields, type ContextField, type ContextSchema } from "./ContextFields";
+export {
+  ContextFields,
+  type ContextField,
+  type ContextSchema,
+} from "./ContextFields";
