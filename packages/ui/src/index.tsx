@@ -64,6 +64,9 @@ export function useUnsavedChanges(dirty: boolean) {
       event.preventDefault();
       event.returnValue = "";
     };
+    const beforeNavigate = (event: Event) => {
+      event.preventDefault();
+    };
     const navigate = (event: MouseEvent) => {
       const link = (event.target as Element).closest<HTMLAnchorElement>(
         "a[href]",
@@ -88,9 +91,11 @@ export function useUnsavedChanges(dirty: boolean) {
       }
     };
     window.addEventListener("beforeunload", beforeUnload);
+    window.addEventListener("forma:before-navigate", beforeNavigate);
     document.addEventListener("click", navigate, true);
     return () => {
       window.removeEventListener("beforeunload", beforeUnload);
+      window.removeEventListener("forma:before-navigate", beforeNavigate);
       document.removeEventListener("click", navigate, true);
     };
   }, [dirty]);
@@ -438,6 +443,7 @@ export function Shell({
   active,
   adminMode = false,
   focusMode = false,
+  navigation,
   children,
 }: {
   user: User;
@@ -445,10 +451,20 @@ export function Shell({
   active: string;
   adminMode?: boolean;
   focusMode?: boolean;
+  navigation?: (onNavigate: () => void) => ReactNode;
   children: ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [logoutError, setLogoutError] = useState("");
+  const [compact, setCompact] = useState(
+    () => window.matchMedia("(max-width: 980px)").matches,
+  );
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 980px)");
+    const update = () => setCompact(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
   async function logout() {
     try {
       await api("/auth/logout", { method: "POST" });
@@ -471,7 +487,13 @@ export function Shell({
         ["/knowledge", "База знаний", BookOpen],
       ];
   return (
-    <div className={"app-shell" + (focusMode ? " focus-mode" : "")}>
+    <div
+      className={
+        "app-shell" +
+        (focusMode ? " focus-mode" : "") +
+        (navigation ? " conversation-shell" : "")
+      }
+    >
       <a
         className="skip-link"
         href="#main-content"
@@ -501,39 +523,47 @@ export function Shell({
       </div>
       <aside className="sidebar">
         <Brand />
-        <div className="org">
-          <div className="org-avatar">К</div>
-          <div>
-            <strong>Компания</strong>
-            <span>
-              {adminMode ? "Администрирование" : "Рабочее пространство"}
-            </span>
-          </div>
-          <span className="org-indicator" />
-        </div>
-        <p className="nav-caption">{adminMode ? "УПРАВЛЕНИЕ" : "РАБОТА"}</p>
-        <nav>
-          {items.map(([url, title, Icon]: any) => (
-            <a
-              key={url}
-              className={"nav-item " + (active === url ? "active" : "")}
-              href={"#" + url}
-              aria-current={active === url ? "page" : undefined}
-            >
-              <Icon size={19} />
-              {title}
-              {active === url && <span className="active-dot" />}
-            </a>
-          ))}
-        </nav>
+        {navigation ? (
+          !compact && navigation(() => {})
+        ) : (
+          <>
+            <div className="org">
+              <div className="org-avatar">К</div>
+              <div>
+                <strong>Компания</strong>
+                <span>
+                  {adminMode ? "Администрирование" : "Рабочее пространство"}
+                </span>
+              </div>
+              <span className="org-indicator" />
+            </div>
+            <p className="nav-caption">{adminMode ? "УПРАВЛЕНИЕ" : "РАБОТА"}</p>
+            <nav>
+              {items.map(([url, title, Icon]: any) => (
+                <a
+                  key={url}
+                  className={"nav-item " + (active === url ? "active" : "")}
+                  href={"#" + url}
+                  aria-current={active === url ? "page" : undefined}
+                >
+                  <Icon size={19} />
+                  {title}
+                  {active === url && <span className="active-dot" />}
+                </a>
+              ))}
+            </nav>
+          </>
+        )}
         <div className="sidebar-bottom">
-          <div className="sidebar-note">
-            <Sparkles size={19} />
-            <strong>
-              Каждое значение —<br />с источником
-            </strong>
-            <p>Документы, контекст и решения в одном месте.</p>
-          </div>
+          {!navigation && (
+            <div className="sidebar-note">
+              <Sparkles size={19} />
+              <strong>
+                Каждое значение —<br />с источником
+              </strong>
+              <p>Документы, контекст и решения в одном месте.</p>
+            </div>
+          )}
           {user.role === "admin" && (
             <a
               className="nav-item"
@@ -581,31 +611,42 @@ export function Shell({
           </footer>
         )}
       </div>
-      {menuOpen && (
+      {menuOpen && (!navigation || compact) && (
         <Modal title="Навигация" onClose={() => setMenuOpen(false)}>
-          <nav className="mobile-menu">
-            {items.map(([url, title, Icon]: any) => (
-              <a
-                key={url}
-                className={"nav-item " + (active === url ? "active" : "")}
-                href={"#" + url}
-                aria-current={active === url ? "page" : undefined}
-                onClick={() => setMenuOpen(false)}
-              >
-                <Icon size={19} />
-                {title}
-              </a>
-            ))}
-            {user.role === "admin" && (
-              <a
-                className="nav-item"
-                href={adminMode ? "/workspace/" : "/admin/"}
-              >
-                <ArrowUpRight size={19} />
-                {adminMode ? "Кабинет специалиста" : "Администрирование"}
-              </a>
-            )}
-          </nav>
+          {navigation ? (
+            navigation(() => setMenuOpen(false))
+          ) : (
+            <>
+              <nav className="mobile-menu">
+                {items.map(([url, title, Icon]: any) => (
+                  <a
+                    key={url}
+                    className={"nav-item " + (active === url ? "active" : "")}
+                    href={"#" + url}
+                    aria-current={active === url ? "page" : undefined}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <Icon size={19} />
+                    {title}
+                  </a>
+                ))}
+                {user.role === "admin" && (
+                  <a
+                    className="nav-item"
+                    href={adminMode ? "/workspace/" : "/admin/"}
+                  >
+                    <ArrowUpRight size={19} />
+                    {adminMode ? "Кабинет специалиста" : "Администрирование"}
+                  </a>
+                )}
+              </nav>
+            </>
+          )}
+          {navigation && user.role === "admin" && (
+            <a className="nav-item" href="/admin/">
+              <Settings2 size={18} /> Администрирование
+            </a>
+          )}
           <div className="mobile-account">
             <span>
               {user.name}
