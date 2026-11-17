@@ -1,0 +1,1 @@
+import socket; socket.getaddrinfo = lambda host, port, family=0, type=0, proto=0, flags=0, _original=socket.getaddrinfo, _ipv4=socket.AF_INET: _original(host, port, _ipv4, type, proto, flags)
