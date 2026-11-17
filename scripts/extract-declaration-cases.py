@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Build a source-only evaluation cache from case directories and client archives.
 
-Never opens GTD_*.xml or *.GTD.ZIP. Run with the backend virtual environment.
+Never reads declaration payloads. --include-alta-support reads only allowlisted
+supporting document members of GTD.ZIP, excluding GTD/INV/KTD/DS*/OPN/docs.xml.
 Files and model outputs remain in the chosen private output directory.
 """
 import argparse
@@ -19,10 +20,11 @@ sys.path.insert(0,str(ROOT/'backend'))
 from app.providers import complete
 from forma_declaration_agent.analysis import recognize_page
 from forma_declaration_agent.documents import archive_members, extract_document, EXTENSIONS
+from forma_declaration_agent.alta_documents import MAGIC as ALTA_SUPPORT, EXCLUDED as ALTA_RESULTS
 
 
 def excluded(name):
-    return name.upper().startswith('GTD_') or name.upper().endswith(('.GTD.ZIP','.GTD'))
+    return name.upper().startswith('GTD_') or Path(name).suffix.lower() in ALTA_RESULTS or name.lower()=='docs.xml'
 
 
 def init_worker(output,key):
@@ -37,17 +39,20 @@ def work(task):
     fingerprint=hashlib.sha256(path.read_bytes()).hexdigest()
     target=BASE/'extracted'/case/(fingerprint+'.json')
     target.parent.mkdir(parents=True,exist_ok=True)
-    if target.exists():return {'case':case,'filename':filename,'status':'cached'}
+    stage={'provider':'deepseek','model':'deepseek-flash','vision':True,'max_tokens':65536,'thinking':True,'reasoning_effort':'max'}
+    if target.exists():
+        cached=json.loads(target.read_text())
+        if cached.get('ocr_profile')==stage:
+            return {'case':case,'filename':filename,'status':'cached'}
     calls=[]
-    stage={'provider':'deepseek','model':'deepseek-flash','vision':True,'max_tokens':16384,'thinking':False}
     def ocr(locator,image):
         value,trace=recognize_page(image,partial(complete,stage,CONNECTION))
         calls.append({**trace,'stage':'ocr','locator':locator})
         return value
     try:
-        segments,warnings=extract_document(path,path.suffix.lower(),filename,recognize=ocr,max_pages=500,max_chars=3_000_000,cache_dir=BASE/'ocr-cache',cache_namespace='deepseek-flash-1017:ocr-v1')
+        segments,warnings=extract_document(path,path.suffix.lower(),filename,recognize=ocr,max_pages=500,max_chars=3_000_000,cache_dir=BASE/'ocr-cache',cache_namespace=json.dumps(stage,sort_keys=True)+':ocr-v1')
         for segment in segments:segment['document_id']=fingerprint
-        data={'filename':filename,'sha256':fingerprint,'segments':segments,'warnings':warnings,'calls':calls}
+        data={'filename':filename,'sha256':fingerprint,'segments':segments,'warnings':warnings,'calls':calls,'ocr_profile':stage}
         with tempfile.NamedTemporaryFile(mode='w',encoding='utf-8',dir=target.parent,delete=False) as f:json.dump(data,f,ensure_ascii=False)
         Path(f.name).replace(target)
         target.with_name(fingerprint+'.error.json').unlink(missing_ok=True)
@@ -64,6 +69,7 @@ def main():
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--key-file',type=Path)
     parser.add_argument('--workers',type=int,choices=range(1,9),default=2)
+    parser.add_argument('--include-alta-support',action='store_true',help='Include only supporting documents from Alta archives; never declarations or declaration workspaces')
     args=parser.parse_args()
     key=args.key_file.read_text().strip() if args.key_file else os.environ['DEEPSEEK_API_KEY']
     os.umask(0o077)
@@ -73,12 +79,14 @@ def main():
     with tempfile.TemporaryDirectory(prefix='forma-cases-',dir=args.output) as staging:
         for case in sorted(p for p in args.input.iterdir() if p.is_dir()):
             seen=set()
-            for path in sorted(case.iterdir()):
+            for path in sorted(case.rglob('*')):
                 if not path.is_file() or excluded(path.name) or path.name.startswith('.'):continue
                 if path.suffix.lower() not in EXTENSIONS:continue
                 if path.suffix.lower() in {'.zip','.7z'}:
+                    if path.name.upper().endswith('.GTD.ZIP') and not args.include_alta_support:continue
                     folder=Path(staging)/str(len(tasks));folder.mkdir(exist_ok=True)
-                    candidates=archive_members(path,folder)
+                    candidates=((path.name+'/'+name,source) for name,source in archive_members(path,folder)
+                                if not path.name.upper().endswith('.GTD.ZIP') or source.suffix.lower() in ALTA_SUPPORT)
                 else:candidates=[(path.name,path)]
                 for name,source in candidates:
                     if excluded(Path(name).name) or source.suffix.lower() not in EXTENSIONS:continue

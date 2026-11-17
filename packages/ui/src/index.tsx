@@ -1,4 +1,11 @@
-import React, { useEffect, useRef, useState, type ReactNode } from "react";
+import React, {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ArrowUpRight,
   ArrowRight,
@@ -13,6 +20,8 @@ import {
   Sparkles,
   ShieldCheck,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   LayoutDashboard,
   RotateCw,
 } from "lucide-react";
@@ -170,7 +179,10 @@ export function Modal({
   busy?: boolean;
 }) {
   useUnsavedChanges(dirty);
-  const container = useRef<HTMLElement>(null);
+  const container = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+  const pressedOutside = useRef(false);
   const [confirmClose, setConfirmClose] = useState(false);
   const stayButton = useRef<HTMLButtonElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -192,103 +204,122 @@ export function Modal({
     returnFocus.current = document.activeElement as HTMLElement | null;
     setConfirmClose(true);
   };
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const focusable = () =>
-      Array.from(
-        container.current?.querySelectorAll<HTMLElement>(
-          'a[href], button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
-        ) || [],
-      ).filter((el) => el.getClientRects().length > 0);
-    if (!container.current?.contains(document.activeElement)) {
-      (
-        container.current?.querySelector<HTMLElement>(
-          "input:not([type=hidden]), textarea, select",
-        ) ||
-        focusable()[0] ||
-        container.current
-      )?.focus();
-    }
-    const f = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        closeRef.current();
-      }
-      if (e.key === "Tab") {
-        const nodes = focusable();
-        const first = nodes[0],
-          last = nodes.at(-1);
-        if (!first) {
-          e.preventDefault();
-          container.current?.focus();
-        } else if (
-          e.shiftKey &&
-          (document.activeElement === first ||
-            document.activeElement === container.current)
-        ) {
-          e.preventDefault();
-          last?.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-    window.addEventListener("keydown", f);
-    return () => {
-      window.removeEventListener("keydown", f);
-      document.body.style.overflow = overflow;
-      if (previous?.isConnected) previous.focus();
-    };
+  useLayoutEffect(() => {
+    const dialog = container.current;
+    if (!dialog) return;
+    const firstField =
+      dialog.querySelector<HTMLElement>("[autofocus]") ||
+      dialog.querySelector<HTMLElement>(
+        'input:not(:disabled):not([type="hidden"]), textarea:not(:disabled), select:not(:disabled)',
+      );
+    const hadAutofocus = firstField?.hasAttribute("autofocus");
+    firstField?.setAttribute("autofocus", "");
+    dialog.showModal();
+    if (!hadAutofocus) firstField?.removeAttribute("autofocus");
+    return () => dialog.close();
   }, []);
+  const outside = (event: React.PointerEvent | React.MouseEvent) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return (
+      event.clientX < rect.left ||
+      event.clientX > rect.right ||
+      event.clientY < rect.top ||
+      event.clientY > rect.bottom
+    );
+  };
   return (
-    <div className="modal-scrim" onClick={() => closeRef.current()}>
-      <section
-        ref={container}
-        tabIndex={-1}
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="section-head">
-          <h2>{title}</h2>
-          <button
-            className="icon-button"
-            onClick={() => closeRef.current()}
-            disabled={busy}
-            aria-label="Закрыть"
-          >
-            <X size={20} />
-          </button>
+    <dialog
+      ref={container}
+      className="modal"
+      aria-labelledby={titleId}
+      {...{ closedby: dirty || busy || confirmClose ? "none" : "any" }}
+      onCancel={(event) => {
+        // Also protects dirty forms in browsers that ignore closedby="none".
+        event.preventDefault();
+        event.stopPropagation();
+        closeRef.current();
+      }}
+      onClose={(event) => {
+        event.stopPropagation();
+        const dialog = event.currentTarget;
+        if (!dialog.isConnected || dialog.open) return;
+        // Without closedby, repeated Escape can bypass a canceled close
+        // request. Keep the mounted draft visible until explicitly discarded.
+        if (dirty || busy || confirmClose) {
+          dialog.showModal();
+          if (!busy) {
+            setConfirmClose(true);
+            if (confirmClose) stayButton.current?.focus();
+          }
+        } else onClose();
+      }}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        pressedOutside.current = event.button === 0 && outside(event);
+      }}
+      onClick={(event) => {
+        event.stopPropagation();
+        const needsGuard = dirty || busy || confirmClose;
+        const needsFallback = !("closedBy" in HTMLDialogElement.prototype);
+        if (
+          (needsGuard || needsFallback) &&
+          pressedOutside.current &&
+          outside(event)
+        ) {
+          closeRef.current();
+        }
+        pressedOutside.current = false;
+      }}
+    >
+      <div className="section-head">
+        <h2 id={titleId}>{title}</h2>
+        <button
+          type="button"
+          className="icon-button"
+          onClick={() => closeRef.current()}
+          disabled={busy}
+          aria-label="Закрыть"
+        >
+          <X size={20} />
+        </button>
+      </div>
+      <div className="modal-content" data-confirm-close={confirmClose}>
+        <div className="modal-body" inert={confirmClose}>
+          {children}
         </div>
-        <div hidden={confirmClose}>{children}</div>
-        {confirmClose && (
+        {(dirty || confirmClose) && (
+          // Both panels occupy the same grid cell so confirmation cannot move
+          // a destructive action under a second click at the same position.
+          // visibility also keeps the hidden panel out of the focus order.
           <div className="discard-confirm">
             <h3>Сохранить изменения перед выходом?</h3>
-            <p>
+            <p id={descriptionId}>
               Вернитесь к форме, чтобы сохранить данные, или закройте её без
               сохранения.
             </p>
             <div className="row">
               <button
+                type="button"
                 ref={stayButton}
                 className="button primary"
+                aria-describedby={descriptionId}
                 onClick={() => setConfirmClose(false)}
               >
                 Вернуться к форме
               </button>
-              <button className="button" onClick={onClose}>
+              <button
+                type="button"
+                className="button"
+                onClick={onClose}
+                disabled={busy}
+              >
                 Закрыть без сохранения
               </button>
             </div>
           </div>
         )}
-      </section>
-    </div>
+      </div>
+    </dialog>
   );
 }
 export function Empty({
@@ -459,6 +490,27 @@ export function Shell({
   const [compact, setCompact] = useState(
     () => window.matchMedia("(max-width: 980px)").matches,
   );
+  const sidebarId = useId();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("forma:workspace:sidebar-collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const sidebarHidden = Boolean(navigation) && !compact && sidebarCollapsed;
+  const sidebarToggleLabel = sidebarHidden
+    ? "Показать боковую панель"
+    : "Скрыть боковую панель";
+  function toggleSidebar() {
+    const collapsed = !sidebarCollapsed;
+    setSidebarCollapsed(collapsed);
+    try {
+      localStorage.setItem("forma:workspace:sidebar-collapsed", String(collapsed));
+    } catch {
+      // Keep the toggle usable when browser storage is unavailable.
+    }
+  }
   useEffect(() => {
     const media = window.matchMedia("(max-width: 980px)");
     const update = () => setCompact(media.matches);
@@ -491,7 +543,8 @@ export function Shell({
       className={
         "app-shell" +
         (focusMode ? " focus-mode" : "") +
-        (navigation ? " conversation-shell" : "")
+        (navigation ? " conversation-shell" : "") +
+        (sidebarHidden ? " sidebar-collapsed" : "")
       }
     >
       <a
@@ -521,7 +574,24 @@ export function Shell({
           <Menu size={21} />
         </button>
       </div>
-      <aside className="sidebar">
+      {navigation && !compact && (
+        <button
+          type="button"
+          className="icon-button sidebar-toggle"
+          aria-label={sidebarToggleLabel}
+          title={sidebarToggleLabel}
+          aria-expanded={!sidebarHidden}
+          aria-controls={sidebarId}
+          onClick={toggleSidebar}
+        >
+          {sidebarHidden ? (
+            <PanelLeftOpen size={20} aria-hidden="true" />
+          ) : (
+            <PanelLeftClose size={20} aria-hidden="true" />
+          )}
+        </button>
+      )}
+      <aside className="sidebar" id={sidebarId} hidden={sidebarHidden}>
         <Brand />
         {navigation ? (
           !compact && navigation(() => {})

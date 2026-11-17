@@ -15,6 +15,12 @@
   --muted: #8b8a83;
   --paper: #fff;
   --canvas: #fbfaf8;
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-md: 0.875rem;
+  --text-lg: 0.9375rem;
+  --text-xl: 1rem;
 }
 * {
   box-sizing: border-box;
@@ -56,16 +62,16 @@ p {
 h1 {
   font-weight: 550;
   letter-spacing: -1.8px;
-  font-size: 38px;
+  font-size: 2.375rem;
   line-height: 1.15;
 }
 h2 {
-  font-size: 21px;
+  font-size: 1.3125rem;
   letter-spacing: -0.6px;
   font-weight: 600;
 }
 h3 {
-  font-size: 17px;
+  font-size: 1.1875rem;
   font-weight: 600;
   letter-spacing: -0.25px;
 }
@@ -76,13 +82,13 @@ p {
   color: var(--muted);
 }
 .small {
-  font-size: 12px;
+  font-size: var(--text-md);
 }
 .orange {
   color: var(--orange);
 }
 .eyebrow {
-  font-size: 11px;
+  font-size: var(--text-sm);
   letter-spacing: 1.8px;
   text-transform: uppercase;
   font-weight: 650;
@@ -98,7 +104,7 @@ p {
   justify-content: center;
   gap: 9px;
   padding: 12px 19px;
-  font-size: 13px;
+  font-size: var(--text-lg);
   font-weight: 550;
   transition:
     transform 0.15s,
@@ -124,7 +130,7 @@ p {
 }
 .button.small {
   padding: 8px 13px;
-  font-size: 12px;
+  font-size: var(--text-md);
 }
 .button.ghost {
   background: transparent;
@@ -151,7 +157,7 @@ p {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 30px;
+  font-size: 1.875rem;
   letter-spacing: -1.7px;
   font-weight: 680;
 }
@@ -203,7 +209,7 @@ p {
   border-radius: 12px;
   background: #f7f5ed;
   padding: 13px 17px;
-  font-size: 13px;
+  font-size: var(--text-lg);
   line-height: 1.6;
   color: #6b6250;
 }
@@ -232,7 +238,7 @@ p {
   margin-bottom: 30px;
 }
 .page-head p {
-  font-size: 14px;
+  font-size: var(--text-xl);
   color: #87867f;
   margin-top: 9px;
 }
@@ -273,7 +279,7 @@ p {
   padding: 5px 8px;
   background: #f1f0ed;
   color: #87857c;
-  font-size: 11px;
+  font-size: var(--text-sm);
   white-space: nowrap;
 }
 .badge i {
@@ -310,7 +316,7 @@ label {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--text-md);
   font-weight: 550;
   color: #66665e;
 }
@@ -323,7 +329,7 @@ select {
   padding: 12px 13px;
   background: #fff;
   color: #30302c;
-  font-size: 13px;
+  font-size: var(--text-lg);
   outline: none;
 }
 input:focus,
@@ -345,24 +351,22 @@ form {
   flex-direction: column;
   gap: 19px;
 }
-.modal-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
+.modal::backdrop {
   background: #25252350;
   backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 .modal {
   background: #fff;
+  color: inherit;
+  border: 0;
   border-radius: 19px;
   padding: 28px;
+  margin: auto;
   max-width: 600px;
-  width: 100%;
-  max-height: 88vh;
+  width: calc(100% - 40px);
+  max-height: 88dvh;
   overflow: auto;
   box-shadow: 0 30px 100px #0002;
 }
@@ -378,7 +382,7 @@ form {
 .empty p {
   max-width: 350px;
   color: #939087;
-  font-size: 13px;
+  font-size: var(--text-lg);
 }
 .empty-icon {
   height: 70px;
@@ -438,15 +442,15 @@ form {
   background: #eae6dc;
   border-radius: 8px;
   color: #80715c;
-  font-size: 13px;
+  font-size: var(--text-lg);
 }
 .org strong {
-  font-size: 12px;
+  font-size: var(--text-md);
   display: block;
   font-weight: 600;
 }
 .org span {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: #979388;
   display: block;
   margin-top: 3px;
@@ -459,7 +463,7 @@ form {
   margin-left: auto;
 }
 .nav-caption {
-  font-size: 9px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   letter-spacing: 1.3px;
   color: #aaa69c;
@@ -473,7 +477,7 @@ form {
   padding: 12px 12px;
   margin-bottom: 5px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: var(--text-md);
   color: #89877e;
 }
 .nav-item.active {
@@ -507,12 +511,12 @@ form {
 }
 .sidebar-note strong {
   display: block;
-  font-size: 12px;
+  font-size: var(--text-md);
   font-weight: 550;
   line-height: 1.6;
 }
 .sidebar-note p {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: #9d9687;
   margin-top: 6px;
 }
@@ -526,7 +530,7 @@ form {
 }
 .profile strong {
   display: block;
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 550;
   max-width: 115px;
   overflow: hidden;
@@ -534,7 +538,7 @@ form {
 }
 .profile span {
   display: block;
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: #aaa397;
   margin-top: 4px;
 }
@@ -549,7 +553,7 @@ form {
   color: #857c6b;
   display: grid;
   place-items: center;
-  font-size: 12px;
+  font-size: var(--text-md);
 }
 .app-main {
   margin-left: 248px;
@@ -565,7 +569,7 @@ form {
   justify-content: space-between;
   padding: 0 42px;
   background: #fff;
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: #827f75;
 }
 .topbar > span > span.muted {
@@ -576,7 +580,7 @@ form {
   border: 1px solid var(--line);
   border-radius: 20px;
   padding: 6px 9px;
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: #8f8b80;
 }
 .prototype-tag span {
@@ -595,7 +599,7 @@ form {
   border-top: 1px solid var(--line);
   display: flex;
   justify-content: space-between;
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: #aaa79f;
 }
 .auth-page {
@@ -615,7 +619,7 @@ form {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: var(--text-md);
   color: #8b8579;
 }
 .auth-card {
@@ -629,11 +633,11 @@ form {
   box-shadow: 0 10px 50px #3331;
 }
 .auth-card h1 {
-  font-size: 32px;
+  font-size: 2rem;
   margin: 14px 0;
 }
 .auth-card > p {
-  font-size: 13px;
+  font-size: var(--text-lg);
   color: #8c887d;
 }
 .auth-card form {
@@ -646,14 +650,14 @@ form {
   gap: 7px;
   margin: auto 0 30px;
   color: #9d9688;
-  font-size: 11px;
+  font-size: var(--text-sm);
 }
 .text-link {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   color: #7b7b71;
-  font-size: 12px;
+  font-size: var(--text-md);
 }
 .toast {
   position: fixed;
@@ -665,7 +669,7 @@ form {
   background: #282b26;
   color: #fff;
   z-index: 100;
-  font-size: 13px;
+  font-size: var(--text-lg);
 }
 .scroll-table {
   overflow: auto;
@@ -673,14 +677,14 @@ form {
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--text-md);
 }
 th {
   text-align: left;
   padding: 13px 16px;
   background: #faf9f6;
   color: #9e998e;
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 500;
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
@@ -701,12 +705,12 @@ tbody tr.clickable:hover {
 .cell-title {
   display: block;
   font-weight: 550;
-  font-size: 12px;
+  font-size: var(--text-md);
 }
 .cell-note {
   display: block;
   color: #a19b90;
-  font-size: 10px;
+  font-size: var(--text-xs);
   margin-top: 5px;
 }
 .stat {
@@ -719,17 +723,17 @@ tbody tr.clickable:hover {
   display: flex;
   justify-content: space-between;
   color: #a79e8e;
-  font-size: 11px;
+  font-size: var(--text-sm);
 }
 .stat strong {
   display: block;
-  font-size: 29px;
+  font-size: 1.8125rem;
   font-weight: 500;
   letter-spacing: -1px;
   margin-top: 15px;
 }
 .stat p {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: #aba394;
   margin-top: 4px;
 }
@@ -740,7 +744,7 @@ tbody tr.clickable:hover {
   padding-left: 35px;
   border-radius: 9px;
   min-width: 240px;
-  font-size: 11px;
+  font-size: var(--text-sm);
 }
 .search > svg {
   position: absolute;
@@ -761,7 +765,7 @@ tbody tr.clickable:hover {
   border-bottom: 2px solid transparent;
   background: none;
   color: #979084;
-  font-size: 12px;
+  font-size: var(--text-md);
   white-space: nowrap;
 }
 .tabs button.active {
@@ -774,7 +778,7 @@ tbody tr.clickable:hover {
   padding: 2px 6px;
   border-radius: 6px;
   background: #eeece5;
-  font-size: 9px;
+  font-size: var(--text-2xs);
 }
 .chips {
   display: flex;
@@ -786,7 +790,7 @@ tbody tr.clickable:hover {
   border: 1px solid var(--line);
   border-radius: 7px;
   background: #fff;
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: #8a8275;
   display: flex;
   gap: 6px;
@@ -797,7 +801,7 @@ tbody tr.clickable:hover {
   color: #5b5a50;
 }
 .source {
-  font-size: 11px;
+  font-size: var(--text-sm);
   border-left: 2px solid #dfd7c5;
   padding: 10px 13px;
   background: #faf8f2;
@@ -807,13 +811,13 @@ tbody tr.clickable:hover {
 }
 .source cite {
   display: block;
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-style: normal;
   color: #a69c87;
 }
 .code {
   font-family: ui-monospace, monospace;
-  font-size: 11px;
+  font-size: var(--text-sm);
   background: #f5f4f1;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -822,7 +826,7 @@ tbody tr.clickable:hover {
   white-space: pre-wrap;
 }
 .notice-inline {
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: #a29a8a;
   line-height: 1.6;
 }
@@ -866,7 +870,7 @@ tbody tr.clickable:hover {
     padding: 18px;
   }
   .page-head h1 {
-    font-size: 32px;
+    font-size: 2rem;
   }
   .page-head {
     align-items: flex-start;
@@ -882,7 +886,7 @@ tbody tr.clickable:hover {
   }
   .sidebar > .brand {
     margin: 0;
-    font-size: 26px;
+    font-size: 1.625rem;
     padding: 0;
   }
   .sidebar .org,
@@ -897,7 +901,7 @@ tbody tr.clickable:hover {
     overflow: auto;
   }
   .sidebar .nav-item {
-    font-size: 11px;
+    font-size: var(--text-sm);
     white-space: nowrap;
   }
   .sidebar-bottom {
@@ -906,7 +910,7 @@ tbody tr.clickable:hover {
     top: 13px;
   }
   .sidebar-bottom > .nav-item {
-    font-size: 10px;
+    font-size: var(--text-xs);
   }
   .app-main {
     margin: 0;
@@ -923,13 +927,13 @@ tbody tr.clickable:hover {
     gap: 16px;
   }
   .page-head h1 {
-    font-size: 29px;
+    font-size: 1.8125rem;
   }
   .grid-3 {
     grid-template-columns: 1fr;
   }
   .stat strong {
-    font-size: 25px;
+    font-size: 1.5625rem;
     margin-top: 8px;
   }
   .stat {
@@ -999,6 +1003,12 @@ tbody tr.clickable:hover {
   outline: 3px solid #a14a2e;
   outline-offset: 3px;
 }
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid #a14a2e;
+  outline-offset: 3px;
+}
 input[type="checkbox"] {
   width: auto;
   accent-color: #416e54;
@@ -1011,7 +1021,7 @@ input[type="checkbox"] {
 }
 .form-hint {
   color: #706f67;
-  font-size: 13px;
+  font-size: var(--text-lg);
   line-height: 1.6;
 }
 .modal h2 {
@@ -1048,7 +1058,7 @@ input[type="checkbox"] {
   border-top: 1px solid var(--line);
   padding-top: 18px;
   margin-top: 20px;
-  font-size: 13px;
+  font-size: var(--text-lg);
 }
 .mobile-account small {
   display: block;
@@ -1072,7 +1082,7 @@ input[type="checkbox"] {
   margin: 0 0 18px;
 }
 .context-form legend {
-  font-size: 13px;
+  font-size: var(--text-lg);
 }
 @media (max-width: 720px) {
   .app-shell > .sidebar {
@@ -1088,7 +1098,7 @@ input[type="checkbox"] {
     background: #fff;
   }
   .mobile-appbar > span {
-    font-size: 11px;
+    font-size: var(--text-sm);
     color: var(--muted);
   }
   .mobile-appbar .icon-button {
@@ -1097,7 +1107,7 @@ input[type="checkbox"] {
     min-height: 40px;
   }
   .mobile-brand {
-    font-size: 24px;
+    font-size: 1.5rem;
     font-weight: 650;
     letter-spacing: -1px;
   }
@@ -1107,10 +1117,8 @@ input[type="checkbox"] {
   .button {
     white-space: normal;
   }
-  .modal-scrim {
-    padding: 12px;
-  }
   .modal {
+    width: calc(100% - 24px);
     max-height: 92dvh;
   }
 }
@@ -1124,14 +1132,14 @@ input[type="checkbox"] {
     border-bottom: 1px solid var(--line);
   }
   .focus-mode .mobile-appbar > span {
-    font-size: 11px;
+    font-size: var(--text-sm);
     color: var(--muted);
   }
   .focus-mode .mobile-appbar .icon-button {
     margin-left: auto;
   }
   .focus-mode .mobile-brand {
-    font-size: 22px;
+    font-size: 1.375rem;
     font-weight: 650;
   }
   .focus-mode > .app-main {
@@ -1149,13 +1157,26 @@ input[type="checkbox"] {
   }
 }
 
+.modal-content {
+  display: grid;
+}
+.modal-content > .modal-body,
+.modal-content > .discard-confirm {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+.modal-content[data-confirm-close="true"] > .modal-body,
+.modal-content[data-confirm-close="false"] > .discard-confirm {
+  visibility: hidden;
+}
 .discard-confirm {
   display: grid;
+  align-content: start;
   gap: 18px;
 }
 .discard-confirm p {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-lg);
 }
 .discard-confirm .row {
   flex-wrap: wrap;
