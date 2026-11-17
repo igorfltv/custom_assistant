@@ -1,7 +1,7 @@
 FROM python:3.12-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends libarchive13 antiword ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends libarchive13 antiword libreoffice-writer-nogui ffmpeg && rm -rf /var/lib/apt/lists/*
 COPY backend/requirements.lock ./
 RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 COPY agent/pyproject.toml agent/README.md /tmp/agent/
