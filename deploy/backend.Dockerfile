@@ -3,10 +3,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends libarchive13 antiword libreoffice-writer-nogui ffmpeg && rm -rf /var/lib/apt/lists/*
 COPY backend/requirements.lock ./
+# Prefer IPv4 while fetching packages on hosts with an unusable IPv6 route.
+# Restore the original address policy before publishing the runtime image.
+RUN cp /etc/gai.conf /tmp/gai-before-build.conf && printf '\nprecedence ::ffff:0:0/96 100\n' >> /etc/gai.conf
 RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 COPY agent/pyproject.toml agent/README.md /tmp/agent/
 COPY agent/src /tmp/agent/src
-RUN pip install --no-cache-dir --no-deps /tmp/agent && rm -rf /tmp/agent
+RUN pip install --no-cache-dir --no-deps /tmp/agent && rm -rf /tmp/agent && mv /tmp/gai-before-build.conf /etc/gai.conf
 RUN useradd --uid 10001 --create-home forma && mkdir -p /app/data && chown forma:forma /app/data
 COPY --chown=forma:forma backend/app ./app
 USER forma
