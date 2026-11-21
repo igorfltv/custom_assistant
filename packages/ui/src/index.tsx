@@ -14,6 +14,7 @@ import {
   Settings2,
   Users,
   ChartNoAxesCombined,
+  MessagesSquare,
   LogOut,
   X,
   LoaderCircle,
@@ -532,6 +533,7 @@ export function Shell({
         ["/knowledge", "База знаний", BookOpen],
         ["/companies", "Компании", Files],
         ["/team", "Сотрудники", Users],
+        ["/dialogs", "Журнал диалогов", MessagesSquare],
         ["/stats", "Статистика", ChartNoAxesCombined],
       ]
     : [
