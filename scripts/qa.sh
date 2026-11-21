@@ -7,6 +7,7 @@ if [[ $# -gt 1 || ( $# -eq 1 && $1 != --compose ) ]]; then
 fi
 uv run --directory agent --locked pytest -q
 uv run --directory backend --locked pytest -q
+uv run --project backend --locked pytest -q qa/test_declaration_reference.py
 npm ci --no-audit --no-fund
 npm run build
 PLAYWRIGHT_SKIP_BROWSER_GC=1 npx --no-install playwright install chromium --only-shell

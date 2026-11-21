@@ -8,8 +8,10 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 import tempfile
+from collections import Counter
 from dataclasses import asdict
 from pathlib import Path
 from datetime import datetime, timezone
@@ -22,7 +24,8 @@ from forma_declaration_agent.pipeline import prepare_dossier, fill_from_dossier
 from forma_declaration_agent.dossier import ShipmentDossier
 from forma_declaration_agent.alta import export
 from forma_declaration_agent.errors import ResponseLimitError, ResponseInterruptedError
-from forma_declaration_agent.evaluation import compare
+from declaration_reference import load_reference
+from forma_declaration_agent.documents import DECLARATION_TAGS
 from forma_declaration_agent.alta_documents import EXCLUDED
 from forma_declaration_agent.references import register_documents
 from forma_declaration_agent.pipeline import call_json
@@ -30,6 +33,10 @@ from forma_declaration_agent.pipeline import call_json
 
 class LedgerComplete(Exception):
     """Explicit diagnostic stop before document registration and legal review."""
+
+
+def page_inventory(segments):
+    return Counter((s['document_id'], s['filename'], s['locator'], s['text']) for s in segments)
 
 
 def main():
@@ -73,6 +80,12 @@ def main():
             name=document['filename'].replace('\\','/');basename=name.rsplit('/',1)[-1]
             if Path(basename).suffix.lower() in EXCLUDED or basename.lower()=='docs.xml' or basename.upper().startswith('GTD_') or name.lower().endswith('.gtd.zip'):
                 raise ValueError('Reference declaration found among input documents')
+            for segment in document['segments']:
+                if (segment.get('filename', name).lower().endswith('.xml')
+                    or '.xml / ' in segment['locator'].lower()):
+                    tags = re.findall(r'(?:^|[}/])([\w.-]+)(?=\[|/|$)', segment['locator'])
+                    if DECLARATION_TAGS.intersection(tags):
+                        raise ValueError('Declaration in cached XML input. Rebuild the source cache in a fresh directory.')
             if '.gtd.zip/' in name.lower() and not args.allow_alta_support:
                 raise ValueError('Archive-assisted inputs require --allow-alta-support and a separate evaluation')
             segments.extend(document['segments']);warnings.extend(document['warnings']);ocr_calls.extend(document.get('calls',[]))
@@ -110,8 +123,8 @@ def main():
             preparation_calls=[]
             if dossier_path and dossier_path.exists():
                 dossier=ShipmentDossier.model_validate_json(dossier_path.read_text())
-                if {s['document_id'] for s in dossier.segments}!={s['document_id'] for s in segments}:
-                    raise ValueError('Saved dossier does not match input document hashes')
+                if page_inventory(dossier.segments) != page_inventory(segments):
+                    raise ValueError('Saved dossier does not match the extracted pages, text and source identifiers')
                 if args.refresh_register:
                     dossier.presented_documents=register_documents(dossier.segments,call,preparation_calls,call_json)
             else:
@@ -131,8 +144,8 @@ def main():
             (case_out/'draft.xml').write_bytes(payload)
             (case_out/'result.json').write_text(json.dumps(asdict(output),ensure_ascii=False,indent=2))
             # Reference access starts here, after generation is finished.
-            expected_path=next((args.expected/folder.name).glob('GTD_*.xml'))
-            comparison=compare(ET.fromstring(payload),ET.parse(expected_path).getroot())
+            reference=load_reference(args.expected/folder.name)
+            comparison=reference.compare(ET.fromstring(payload))
             report={'case':folder.name,'status':'completed','input_manifest':manifest,'input_errors':errors,'extraction_warnings':warnings,'export_issues':issues,'comparison':comparison,'ocr_calls':ocr_calls,'calls':output.calls,'questions':len(output.draft.questions),'legal_findings':len(output.legal_findings),'model':'deepseek-flash','reference_used_for_generation':False,'output_target':'alta_gtd_xml','import_performed':False,'extraction_cache_reused':True}
         except LedgerComplete:
             report={'case':folder.name,'status':'ledger_only','input_manifest':manifest,'reference_used_for_generation':False}

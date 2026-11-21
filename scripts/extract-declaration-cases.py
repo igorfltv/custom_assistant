@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Build a source-only evaluation cache from case directories and client archives.
 
-Never reads declaration payloads. --include-alta-support reads only allowlisted
-supporting document members of GTD.ZIP, excluding GTD/INV/KTD/DS*/OPN/docs.xml.
+XML envelopes are inspected for declaration tags before scheduling extraction.
+--include-alta-support processes only allowlisted supporting document members
+of GTD.ZIP, excluding GTD/INV/KTD/DS*/OPN/docs.xml.
 Files and model outputs remain in the chosen private output directory.
 """
 import argparse
@@ -19,7 +20,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'backend'))
 from app.providers import complete
 from forma_declaration_agent.analysis import recognize_page
-from forma_declaration_agent.documents import archive_members, extract_document, EXTENSIONS
+from forma_declaration_agent.documents import archive_members, extract_document, is_declaration_xml, EXTENSIONS, PDF_EXTRACTION_VERSION
 from forma_declaration_agent.alta_documents import MAGIC as ALTA_SUPPORT, EXCLUDED as ALTA_RESULTS
 
 
@@ -40,9 +41,10 @@ def work(task):
     target=BASE/'extracted'/case/(fingerprint+'.json')
     target.parent.mkdir(parents=True,exist_ok=True)
     stage={'provider':'deepseek','model':'deepseek-flash','vision':True,'max_tokens':65536,'thinking':True,'reasoning_effort':'max'}
+    extraction_version = PDF_EXTRACTION_VERSION if path.suffix.lower() == '.pdf' else None
     if target.exists():
         cached=json.loads(target.read_text())
-        if cached.get('ocr_profile')==stage:
+        if cached.get('ocr_profile')==stage and cached.get('extraction_version') == extraction_version:
             return {'case':case,'filename':filename,'status':'cached'}
     calls=[]
     def ocr(locator,image):
@@ -52,7 +54,8 @@ def work(task):
     try:
         segments,warnings=extract_document(path,path.suffix.lower(),filename,recognize=ocr,max_pages=500,max_chars=3_000_000,cache_dir=BASE/'ocr-cache',cache_namespace=json.dumps(stage,sort_keys=True)+':ocr-v1')
         for segment in segments:segment['document_id']=fingerprint
-        data={'filename':filename,'sha256':fingerprint,'segments':segments,'warnings':warnings,'calls':calls,'ocr_profile':stage}
+        data={'filename':filename,'sha256':fingerprint,'segments':segments,'warnings':warnings,'calls':calls,'ocr_profile':stage,
+              'extraction_version':extraction_version}
         with tempfile.NamedTemporaryFile(mode='w',encoding='utf-8',dir=target.parent,delete=False) as f:json.dump(data,f,ensure_ascii=False)
         Path(f.name).replace(target)
         target.with_name(fingerprint+'.error.json').unlink(missing_ok=True)
@@ -68,6 +71,7 @@ def main():
     parser.add_argument('--input',required=True,type=Path,help='Root containing one directory per case')
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--key-file',type=Path)
+    parser.add_argument('--case', action='append', help='Extract only the named case (repeatable)')
     parser.add_argument('--workers',type=int,choices=range(1,9),default=2)
     parser.add_argument('--include-alta-support',action='store_true',help='Include only supporting documents from Alta archives; never declarations or declaration workspaces')
     args=parser.parse_args()
@@ -78,6 +82,7 @@ def main():
     # Staging uses generated names, independent of paths inside client archives.
     with tempfile.TemporaryDirectory(prefix='forma-cases-',dir=args.output) as staging:
         for case in sorted(p for p in args.input.iterdir() if p.is_dir()):
+            if args.case and case.name not in args.case:continue
             seen=set()
             for path in sorted(case.rglob('*')):
                 if not path.is_file() or excluded(path.name) or path.name.startswith('.'):continue
@@ -90,6 +95,7 @@ def main():
                 else:candidates=[(path.name,path)]
                 for name,source in candidates:
                     if excluded(Path(name).name) or source.suffix.lower() not in EXTENSIONS:continue
+                    if is_declaration_xml(source):continue
                     digest=hashlib.sha256(source.read_bytes()).hexdigest()
                     if digest in seen:continue
                     seen.add(digest)

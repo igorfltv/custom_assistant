@@ -12,7 +12,8 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 
 from forma_declaration_agent.catalog import CATALOG
-from forma_declaration_agent.evaluation import leaves, comparable, compare
+from forma_declaration_agent.evaluation import leaves, comparable
+from declaration_reference import load_reference
 from forma_declaration_agent.schema import ALL_BINDINGS
 
 XML_BINDINGS=defaultdict(list)
@@ -99,8 +100,8 @@ def explain(row):
 
 
 def audit(case,expected_dir,actual_dir,baseline_dir,sources_dir,expanded_dir):
-    expected_path=next((expected_dir/case).glob('GTD_*.xml'))
-    expected=ET.parse(expected_path).getroot()
+    reference=load_reference(expected_dir/case)
+    expected=reference.root
     actual=ET.parse(actual_dir/case/'draft.xml').getroot()
     baseline=ET.parse(baseline_dir/case/'draft.xml').getroot()
     loose=Sources(sources_dir/'extracted'/case)
@@ -164,9 +165,17 @@ def audit(case,expected_dir,actual_dir,baseline_dir,sources_dir,expanded_dir):
                     'archive_literal_hits':archive.find(identity[1]) if archive else []}
             document_checks[identity]['reference_items'].append(i)
     assert len(graphs)==54 and len(rows)==sum(1 for _ in leaves(expected))
-    return {'case':case,'reference_path':str(expected_path),'reference_used_for_generation':False,
+    source_fields=reference.source_fields
+    if source_fields is not None:
+        by_path={r['path']:r for r in rows}
+        source_fields=[{**field,
+            'comparison_status':by_path[field['alta_path']]['status'] if field['alta_path'] else 'unmapped',
+            'actual':by_path[field['alta_path']]['actual_same_xml_position'] if field['alta_path'] else None}
+            for field in source_fields]
+    return {'case':case,'reference_path':str(reference.path),'reference_format':reference.format,
+        'source_fields':source_fields, 'reference_used_for_generation':False,
         'method':'All reference nonempty leaves and attributes; positional comparison is sensitive to grouping/order. Literal source search is diagnostic only. Goods code/origin matching is separate and never forces grouping.',
-        'before':compare(baseline,expected),'after':compare(actual,expected),'graphs':graphs,'goods':goods,'leaves':rows,
+        'before':reference.compare(baseline),'after':reference.compare(actual),'graphs':graphs,'goods':goods,'leaves':rows,
         'reference_documents':list(document_checks.values()),
         'source_review':generated.get('source_review',{}),
         'unmapped_leaves':[r['path'] for r in rows if r['graph'] is None],
@@ -185,6 +194,9 @@ def render(result,folder):
         'Графы индексируются по тегам XML и известным таблицам G44/TOVG/TXT. Неоднозначные исторические теги формата оставлены в unmapped_leaves; отсутствие записи под номером графы не считается доказательством её неприменимости.', '',
         '| Графа | Название | Реквизитов эталона | Совпало | Отличается | Нет | Значение найдено отдельно / в архиве |',
         '|---|---|---:|---:|---:|---:|---:|']
+    if result['source_fields'] is not None:
+        mapped=sum(bool(row['alta_path']) for row in result['source_fields'])
+        lines[2:2]=[f"Формат эталона ESADout_CU. Таблицы сравнивают {mapped} сопоставимых реквизитов. Полный перечень из {len(result['source_fields'])} реквизитов исходного XML с путями и значениями приведён в source_fields файла audit.json.", '']
     for g in result['graphs']:
         s=g['states'];lines.append(f"| {g['number']} | {g['name']} | {g['reference_leaves']} | {s.get('match',0)} | {s.get('different',0)} | {s.get('missing',0)} | {g['loose_literal_hits']} / {g['archive_literal_hits']} |")
     lines+=['','## Контроль сумм независимо от порядка товаров','',
@@ -211,7 +223,7 @@ def render(result,folder):
         filenames=', '.join(dict.fromkeys(r['filename'] for r in d['registry_candidates'])) or '—'
         lines.append(f"| {d['type_code']} | {cell(d['title'])} | {cell(d['number'])} / {d['date']} | {d['registry_status']} | {cell(filenames)} |")
     lines+=['','## Разбор реквизитов','',
-            'Для каждого непустого реквизита сохранены ожидаемое и полученное значение, диагноз и точные ссылки на исходный файл/локатор в JSON. Ни один XML-реквизит не исключён из аудита. Служебные поля и результаты выпуска отмечены отдельно.', '']
+            'Для каждого сравниваемого реквизита JSON содержит ожидаемое и полученное значение, результат проверки и найденные ссылки на источник.', '']
     for g in result['graphs']:
         lines += [f"### {g['number']}. {g['name']}",'',g['assessment'],'']
         selected=[r for r in result['leaves'] if r['graph']==g['number']]
