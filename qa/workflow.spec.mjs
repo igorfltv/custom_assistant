@@ -35,7 +35,9 @@ test("login, upload, analyze, fill missing details, download XML and reopen on m
   await dialog.getByRole("searchbox").fill("графа 14");
   await dialog.getByRole("button", { name: /Графа 14 / }).click();
   await dialog.getByRole("textbox", { name: "Город", exact: true }).fill("Казань");
-  await dialog.locator("details > summary").first().click();
+  await dialog.getByText("Запомнить правило для следующих деклараций").click();
+  await dialog.getByLabel("Правило для моих деклараций").fill("Для графы 14 сверяй город с карточкой декларанта.");
+  await dialog.locator(".missing-guidance details > summary").first().click();
   const source = dialog.getByRole("button", { name: /invoice\.txt/ }).first();
   await source.click();
   const preview = page.getByRole("dialog", { name: "invoice.txt" });
@@ -47,6 +49,10 @@ test("login, upload, analyze, fill missing details, download XML and reopen on m
   await dialog.getByRole("button", { name: "Сохранить реквизиты" }).click();
   await expect(page.getByRole("dialog", { name: /Графа 14/ })).toHaveCount(0);
   await expect(dialog.getByRole("heading", { name: /Незаполненные графы/ })).toBeVisible();
+  const memory = await (await page.request.get("/api/me/memory")).json();
+  const saved = memory.items.find((note) => note.text === "Для графы 14 сверяй город с карточкой декларанта.");
+  expect(saved?.graph).toBe("14");
+  await page.request.delete("/api/me/memory/" + saved.id);
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
   await page.getByRole("button", { name: "XML-проект", exact: true }).click();
