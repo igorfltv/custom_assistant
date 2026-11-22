@@ -13,14 +13,14 @@ test("login, upload, analyze, fill missing details, download XML and reopen on m
   await page.getByLabel("Email", { exact: true }).fill("qa@example.test");
   await page.getByLabel("Пароль", { exact: true }).fill(process.env.FORMA_QA_PASSWORD);
   await page.getByRole("button", { name: "Войти", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "С какой поставкой работаем?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Поставки", exact: true })).toBeVisible();
   const provider = await page.request.put("/api/admin/providers/deepseek", {
     data: { base_url: "https://api.deepseek.com/v1", api_key: "synthetic-browser-test" },
   });
   expect(provider.ok()).toBeTruthy();
   await page.getByRole("button", { name: "Новая декларация" }).click();
   const dialog = page.getByRole("dialog");
-  const title = dialog.getByLabel("Название диалога");
+  const title = dialog.getByLabel("Название поставки");
   await expect(title).toBeFocused();
   await title.fill("Проверка поставки");
   await dialog.getByRole("button", { name: "Создать декларацию" }).click();
@@ -32,6 +32,7 @@ test("login, upload, analyze, fill missing details, download XML and reopen on m
   await page.getByRole("button", { name: "Отправить документы на анализ" }).click();
   const gaps = page.getByRole("button", { name: /^Незаполненные графы:/ });
   await gaps.click();
+  await dialog.getByRole("searchbox").fill("графа 14");
   await dialog.getByRole("button", { name: /Графа 14 / }).click();
   await dialog.getByRole("textbox", { name: "Город", exact: true }).fill("Казань");
   await dialog.locator("details > summary").first().click();
@@ -44,6 +45,7 @@ test("login, upload, analyze, fill missing details, download XML and reopen on m
   await expect(source).toBeFocused();
   await expect(dialog.getByRole("textbox", { name: "Город", exact: true })).toHaveValue("Казань");
   await dialog.getByRole("button", { name: "Сохранить реквизиты" }).click();
+  await expect(page.getByRole("dialog", { name: /Графа 14/ })).toHaveCount(0);
   await expect(dialog.getByRole("heading", { name: /Незаполненные графы/ })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
@@ -60,6 +62,7 @@ test("login, upload, analyze, fill missing details, download XML and reopen on m
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(shipmentURL);
   await gaps.click();
+  await dialog.getByRole("searchbox").fill("графа 14");
   await dialog.getByRole("button", { name: /Графа 14 / }).click();
   await expect(dialog.getByRole("textbox", { name: "Город", exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
