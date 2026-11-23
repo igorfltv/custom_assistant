@@ -24,6 +24,22 @@ def fixture_response(stage, connection, system, text, image=None):
                              for title, number in [("Certificate A", "AA-1"), ("Certificate B", "BB-2")]]
                 break
         result = {"documents": documents}
+    elif isinstance(payload,dict) and "writable_keys" in payload:
+        segment=next((s for s in payload["sources"] if "Country of manufacture pending." in s["text"]),None)
+        result={"corrections":[],"requests":[]}
+        if segment:
+            for topic,question,quote in [
+                ("origin","В какой стране изготовлен насос P1?","Country of manufacture pending."),
+                ("weights","Какова масса брутто насоса P1?","100 kg"),
+            ]:
+                result["requests"].append({"topic":topic,"question":question,"items":[1],
+                    "evidence":[{"source":segment["source"],"quote":quote}],"search_terms":[quote]})
+    elif isinstance(payload,dict) and "additional_sources" in payload:
+        result={"requests":[i for i,q in enumerate(payload["requests"]) if q["topic"]=="origin"],"corrections":[]}
+    elif isinstance(payload,dict) and "parties" in payload:
+        result={"changes":[],"issues":[]}
+    elif isinstance(payload,dict) and set(payload)=={"rows"}:
+        result={"facts":[],"issues":[]}
     elif "segments" in payload:
         segment = payload["segments"][0]
         if "LEGAL-QA" in segment["text"]:

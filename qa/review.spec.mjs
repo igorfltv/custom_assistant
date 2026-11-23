@@ -33,7 +33,9 @@ test("review a documented choice, inspect its source, save and resume from the q
     name: "invoice-currency.txt",
     mimeType: "text/plain",
     buffer: Buffer.from(
-      "Pump P1 100 kg 50 EUR. Declarant: QA Company. Currency options: EUR / USD",
+      "Pump P1 100 kg 50 EUR. Declarant: QA Company. Currency options: EUR / USD. " +
+      "Country of manufacture pending. The gross weight specified above relates to the single pump shipped under this commercial invoice. " +
+      "The purchaser has supplied the consignee address separately. The packing note identifies the same pump and includes the transport packaging in the stated gross mass.",
     ),
   });
   await page
@@ -42,6 +44,15 @@ test("review a documented choice, inspect its source, save and resume from the q
   const card = page.getByRole("region", { name: "Текущее замечание" });
   const choose = card.getByRole("button", { name: "Подставить «USD»" });
   await expect(choose).toBeVisible();
+  const client = page.getByRole("region", { name: "Вопросы клиенту" });
+  await client.locator("summary").first().click();
+  await expect(client).toContainText("В какой стране изготовлен насос P1?");
+  await expect(client).not.toContainText("Какова масса брутто");
+  await client.getByText("Основание в документах").click();
+  await client.getByRole("button", { name: /invoice-currency/ }).click();
+  const clientSource = page.getByRole("dialog", { name: "invoice-currency.txt" });
+  await expect(clientSource.locator("mark").first()).toHaveText("Country of manufacture pending.");
+  await clientSource.getByRole("button", { name: "Закрыть" }).click();
   await page.screenshot({ path: testInfo.outputPath("review-desktop.png") });
   await card
     .getByRole("button", { name: "invoice-currency.txt" })
@@ -153,6 +164,9 @@ test("an XML issue opens its own register entry and repairs only that entry", as
   ).toHaveValue("1");
   await expect(dialog.getByLabel("Номер документа")).toHaveValue("BB-2");
   await dialog.getByLabel("Код вида документа").fill("12345");
+  await dialog.getByLabel("Представление документа").selectOption("2");
+  await dialog.getByLabel("Регистрационный номер предшествующего таможенного документа").fill("10000000/191126/0000001");
+  await dialog.getByLabel("Дата документа", {exact: true}).fill("2026-11-19");
   await dialog.getByRole("button", { name: /Открыть источник/ }).click();
   await page
     .getByRole("dialog", { name: "register.txt" })
@@ -169,6 +183,9 @@ test("an XML issue opens its own register entry and repairs only that entry", as
   expect(fields).toHaveLength(2);
   for (const field of fields)
     expect(field.documents.map((d) => d.type_code)).toEqual([null, "12345"]);
+  const xml = await (await page.request.get(api + "/export.xml?draft=true")).text();
+  expect(xml.match(/<G4403>2<\/G4403>/g)).toHaveLength(2);
+  expect(xml.match(/<G442R>10000000\/191126\/0000001<\/G442R>/g)).toHaveLength(2);
   expect(saved.export_issues.filter((i) => i.graph === "44")).toHaveLength(2);
   await page
     .getByRole("button", { name: "Общие для товаров · 1", exact: true })
