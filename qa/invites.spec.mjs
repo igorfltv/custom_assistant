@@ -39,7 +39,7 @@ test("admin replaces an opened invite and sees which link registered the employe
     await guest.getByRole("button", { name: "Создать учётную запись" }).click();
     await expect(guest.getByRole("alert")).toBeVisible();
     await guest.reload();
-    await expect(guest.getByText(/Администратор заменил это приглашение/)).toBeVisible();
+    await expect(guest.getByText(/Приглашение отозвано/)).toBeVisible();
     await guest.goto(replacement);
     await expect(loginEmail).toHaveValue(email);
     await guest.getByLabel("Ваше имя").fill("Мария");
@@ -57,7 +57,7 @@ test("admin replaces an opened invite and sees which link registered the employe
 
   await page.getByRole("button", { name: "Обновить" }).click();
   await expect(row).toHaveCount(2);
-  await expect(row.filter({ hasText: "Заменена" }).getByRole("cell").nth(3)).toHaveText("Нет");
+  await expect(row.filter({ hasText: "Отозвана" }).getByRole("cell").nth(3)).toHaveText("Нет");
   await expect(row.filter({ hasText: "Использована" })).toContainText("Зарегистрирован");
   await expect(history.getByRole("button", { name: "Перевыпустить" })).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });
