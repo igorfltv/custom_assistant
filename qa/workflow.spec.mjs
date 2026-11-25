@@ -14,6 +14,23 @@ test("login, upload, analyze, fill missing details, download XML and reopen on m
   await page.getByLabel("Пароль", { exact: true }).fill(process.env.FORMA_QA_PASSWORD);
   await page.getByRole("button", { name: "Войти", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Поставки", exact: true })).toBeVisible();
+  const overview = page.locator("details").filter({
+    has: page.getByText("Как подготовить первую декларацию", { exact: true }),
+  });
+  await expect(overview).toHaveJSProperty("open", true);
+  await expect(overview.getByRole("listitem")).toHaveCount(3);
+  const summary = overview.locator("summary");
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(overview).toHaveJSProperty("open", false);
+  await expect(summary).toBeFocused();
+  await page.reload();
+  await expect(overview).toHaveJSProperty("open", false);
+  await summary.click();
+  await overview.getByRole("link", { name: "базе знаний" }).click();
+  await expect(page.getByRole("heading", { name: /База знаний/ })).toBeVisible();
+  await page.goBack();
+  await expect(overview).toHaveJSProperty("open", false);
   const provider = await page.request.put("/api/admin/providers/deepseek", {
     data: { base_url: "https://api.deepseek.com/v1", api_key: "synthetic-browser-test" },
   });
@@ -25,12 +42,17 @@ test("login, upload, analyze, fill missing details, download XML and reopen on m
   await title.fill("Проверка поставки");
   await dialog.getByRole("button", { name: "Создать декларацию" }).click();
   await expect(page.getByRole("heading", { name: "Проверка поставки" })).toBeVisible();
+  await expect(page.getByText("Инвойс и упаковочный лист", { exact: true })).toBeVisible();
   const shipmentURL = page.url();
   await page.locator('input[type="file"]').setInputFiles({
     name: "invoice.txt", mimeType: "text/plain", buffer: Buffer.from("Pump P1 100 kg 50 EUR. Declarant: QA Company"),
   });
   await page.getByRole("button", { name: "Отправить документы на анализ" }).click();
   const review = page.getByRole("region", {name: "Замечания по графам"});
+  const reviewGuide = page.locator("details").filter({
+    has: page.getByText("Как проверить черновик", { exact: true }),
+  });
+  await expect(reviewGuide).toHaveJSProperty("open", true);
   const graph14 = review.locator(".graph-review-card").filter({has: page.locator("summary strong", {hasText: /^Графа 14$/})});
   const openGraph = async () => {
     await review.getByRole("searchbox").fill("графа 14");
@@ -73,6 +95,7 @@ test("login, upload, analyze, fill missing details, download XML and reopen on m
   await expect(page.getByRole("row").filter({ hasText: "qa@example.test" })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(shipmentURL);
+  await expect(reviewGuide).toHaveJSProperty("open", false);
   await openGraph();
   await expect(dialog.getByRole("textbox", { name: "Город", exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
