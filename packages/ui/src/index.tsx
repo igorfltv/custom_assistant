@@ -11,6 +11,7 @@ import {
   ArrowRight,
   Files,
   BookOpen,
+  NotebookText,
   Settings2,
   Users,
   ChartNoAxesCombined,
@@ -534,6 +535,7 @@ export function Shell({
         ["/companies", "Компании", Files],
         ["/team", "Сотрудники", Users],
         ["/dialogs", "Журнал диалогов", MessagesSquare],
+        ["/memory", "Память пользователей", NotebookText],
         ["/stats", "Статистика", ChartNoAxesCombined],
       ]
     : [
