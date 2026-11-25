@@ -43,7 +43,12 @@ test("review a documented choice, inspect its source, save and resume from the q
     .click();
   const card = page.getByRole("region", { name: "Текущее замечание" });
   const choose = card.getByRole("button", { name: "Подставить «USD»" });
-  await expect(choose).toBeVisible();
+  const review = page.getByRole("region", {name: "Замечания по графам"});
+  const section = review.getByLabel("Раздел декларации");
+  const graph = (number) => review.locator(".graph-review-card").filter({has: page.locator("summary strong", {hasText: new RegExp("^Графа " + number + "$")})});
+  await section.selectOption("1");
+  await graph(34).locator("summary").click();
+  await expect(graph(34)).toContainText("Нет данных для заполнения");
   const client = page.getByRole("region", { name: "Вопросы клиенту" });
   await client.locator("summary").first().click();
   await expect(client).toContainText("В какой стране изготовлен насос P1?");
@@ -53,7 +58,12 @@ test("review a documented choice, inspect its source, save and resume from the q
   const clientSource = page.getByRole("dialog", { name: "invoice-currency.txt" });
   await expect(clientSource.locator("mark").first()).toHaveText("Country of manufacture pending.");
   await clientSource.getByRole("button", { name: "Закрыть" }).click();
+  await section.selectOption("null");
+  await graph(22).locator("summary").click();
+  await expect(graph(22).locator(".review-current")).toContainText("EUR");
   await page.screenshot({ path: testInfo.outputPath("review-desktop.png") });
+  await graph(22).locator(".graph-review-issue").filter({hasText: /Разрешите противоречие/}).getByRole("button").click();
+  await expect(choose).toBeVisible();
   await card
     .getByRole("button", { name: "invoice-currency.txt" })
     .first()
@@ -187,12 +197,22 @@ test("an XML issue opens its own register entry and repairs only that entry", as
   expect(xml.match(/<G4403>2<\/G4403>/g)).toHaveLength(2);
   expect(xml.match(/<G442R>10000000\/191126\/0000001<\/G442R>/g)).toHaveLength(2);
   expect(saved.export_issues.filter((i) => i.graph === "44")).toHaveLength(2);
-  await page
-    .getByRole("button", { name: "Общие для товаров · 1", exact: true })
-    .click();
-  await expect(
-    page.getByRole("dialog").getByRole("button", { name: /Certificate A/ }),
-  ).toHaveCount(1);
+  const review = page.getByRole("region", {name: "Замечания по графам"});
+  for (const item of [1, 2]) {
+    await review.getByLabel("Раздел декларации").selectOption(String(item));
+    const graph = review.locator(".graph-review-card").filter({has: page.locator("summary strong", {hasText: /^Графа 44$/})});
+    await graph.locator("summary").click();
+    const issue = graph.locator(".graph-review-issue").filter({hasText: "Certificate A"});
+    await expect(issue).toHaveCount(1);
+    await expect(graph.locator(".graph-review-issue").filter({hasText: "Certificate B"})).toHaveCount(0);
+    await issue.getByRole("button").click();
+    const current = page.getByRole("region", {name:"Текущее замечание"});
+    await expect(current).toContainText("Графа 44 · Товар №" + item);
+    await current.getByRole("button", {name:"Проверить реквизиты графы"}).click();
+    await expect(dialog.getByLabel("Номер документа")).toHaveValue("AA-1");
+    await dialog.getByRole("button", {name:"Закрыть", exact: true}).click();
+    await current.getByRole("button", {name:"К графам декларации"}).click();
+  }
 });
 
 test("the operator can trace a dated legal finding to its archived passage", async ({
@@ -237,7 +257,7 @@ test("the operator can trace a dated legal finding to its archived passage", asy
     .getByRole("button", { name: "Отправить документы на анализ" })
     .click();
   await expect(
-    page.getByRole("region", { name: "Текущее замечание" }),
+    page.getByRole("region", { name: "Замечания по графам" }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Контекст поставки", exact: true })
@@ -268,4 +288,44 @@ test("the operator can trace a dated legal finding to its archived passage", asy
   await expect(
     page.locator('.dt-cell[data-graph="35"][data-item="1"]'),
   ).toBeFocused();
+});
+
+test("a saved dialogue groups existing values and gaps without repeating analysis", async ({ page }) => {
+  await page.goto("/workspace/");
+  await page.getByLabel("Email", {exact:true}).fill("qa@example.test");
+  await page.getByLabel("Пароль", {exact:true}).fill(process.env.FORMA_QA_PASSWORD);
+  await page.getByRole("button", {name:"Войти", exact:true}).click();
+  await expect(page.getByRole("heading", {name:"Поставки", exact:true})).toBeVisible();
+  const {id} = await (await page.request.post("/api/declarations", {data:{title:"Архивная поставка"}})).json();
+  const detail = "/api/declarations/" + id;
+  const run = "saved-run";
+  const noise = "Различие в примечаниях к копиям документов";
+  const q = (graph, item, kind, text) => ({graph, item, kind, text, reason: text});
+  await page.route("**" + detail, async (route) => {
+    const response = await route.fetch();
+    const saved = await response.json();
+    await route.fulfill({json:{...saved, run_id:run, status:"review", context:{run_id:run, points:[{category:"attention",kind:"conflict",title:noise,description:noise}]},
+      fields:[{graph:"31",item:1,value:"Насос",evidence:[],status:"confirmed"},{graph:"31",item:2,value:"Клапан",evidence:[],status:"confirmed"},
+        {graph:"35",item:1,value:"12",evidence:[],status:"unverified"}],
+      questions:[q("35",1,"unverified","Сверьте массу насоса"),q("35",2,"missing","В документах нет массы клапана"),
+        q("35",null,"conflict",noise),{...q("39",1,"missing","Проверить применимость квоты"),details:{check_applicability:true}},
+        q("unknown",2,"conflict",noise)], documents: [{id:"doc",name:"saved.txt",extension:".txt",size:8,status:"extracted",warnings:[noise],segments:[]}]}});
+  });
+  await page.goto("/workspace/#/declaration/" + id);
+  const list = page.getByRole("region", {name:"Замечания по графам"});
+  await list.getByLabel("Раздел декларации").selectOption("all");
+  await expect(list.locator(".graph-review-card")).toHaveCount(2);
+  await expect(list).not.toContainText(noise);
+  await expect(list).not.toContainText("квоты");
+  for (const [item, status, reason] of [["1","Заполнена · проверить","Сверьте массу насоса"],["2","Нет данных для заполнения","В документах нет массы клапана"]]) {
+    await list.getByLabel("Раздел декларации").selectOption(item);
+    await list.locator("summary").click();
+    await expect(list).toContainText(status);
+    await expect(list).toContainText(reason);
+    if (item === "1") await expect(list.locator(".review-current")).toContainText("12");
+    await list.getByRole("button",{name:"Показать на бланке"}).click();
+    await expect(page.locator('.dt-cell[data-graph="35"][data-item="' + item + '"]')).toBeFocused();
+  }
+  await page.getByRole("button",{name:"Контекст поставки",exact:true}).first().click();
+  await expect(page.locator(".context-pane")).not.toContainText(noise);
 });

@@ -30,10 +30,16 @@ test("login, upload, analyze, fill missing details, download XML and reopen on m
     name: "invoice.txt", mimeType: "text/plain", buffer: Buffer.from("Pump P1 100 kg 50 EUR. Declarant: QA Company"),
   });
   await page.getByRole("button", { name: "Отправить документы на анализ" }).click();
-  const gaps = page.getByRole("button", { name: /^Незаполненные графы:/ });
-  await gaps.click();
-  await dialog.getByRole("searchbox").fill("графа 14");
-  await dialog.getByRole("button", { name: /Графа 14 / }).click();
+  const review = page.getByRole("region", {name: "Замечания по графам"});
+  const graph14 = review.locator(".graph-review-card").filter({has: page.locator("summary strong", {hasText: /^Графа 14$/})});
+  const openGraph = async () => {
+    await review.getByRole("searchbox").fill("графа 14");
+    await graph14.locator("summary").click();
+    await expect(graph14).toContainText("Заполнена частично");
+    await expect(graph14).toContainText("QA Company");
+    await graph14.getByRole("button", {name: "Дополнить графу"}).click();
+  };
+  await openGraph();
   await dialog.getByRole("textbox", { name: "Город", exact: true }).fill("Казань");
   await dialog.getByText("Запомнить правило для следующих деклараций").click();
   await dialog.getByLabel("Правило для моих деклараций").fill("Для графы 14 сверяй город с карточкой декларанта.");
@@ -48,7 +54,7 @@ test("login, upload, analyze, fill missing details, download XML and reopen on m
   await expect(dialog.getByRole("textbox", { name: "Город", exact: true })).toHaveValue("Казань");
   await dialog.getByRole("button", { name: "Сохранить реквизиты" }).click();
   await expect(page.getByRole("dialog", { name: /Графа 14/ })).toHaveCount(0);
-  await expect(dialog.getByRole("heading", { name: /Незаполненные графы/ })).toBeVisible();
+  await expect(review).toBeVisible();
   const memory = await (await page.request.get("/api/me/memory")).json();
   const saved = memory.items.find((note) => note.text === "Для графы 14 сверяй город с карточкой декларанта.");
   expect(saved?.graph).toBe("14");
@@ -67,9 +73,7 @@ test("login, upload, analyze, fill missing details, download XML and reopen on m
   await expect(page.getByRole("row").filter({ hasText: "qa@example.test" })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(shipmentURL);
-  await gaps.click();
-  await dialog.getByRole("searchbox").fill("графа 14");
-  await dialog.getByRole("button", { name: /Графа 14 / }).click();
+  await openGraph();
   await expect(dialog.getByRole("textbox", { name: "Город", exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
