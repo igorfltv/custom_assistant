@@ -39,7 +39,7 @@ test("review a documented choice, inspect its source, save and resume from the q
     ),
   });
   await page
-    .getByRole("button", { name: "Отправить документы на анализ" })
+    .getByRole("button", { name: "Загрузить и начать анализ" })
     .click();
   const card = page.getByRole("region", { name: "Текущее замечание" });
   const choose = card.getByRole("button", { name: "Подставить «USD»" });
@@ -254,7 +254,7 @@ test("the operator can trace a dated legal finding to its archived passage", asy
     buffer: Buffer.from("LEGAL-QA. Pump P1 100 kg. Declarant: QA Company."),
   });
   await page
-    .getByRole("button", { name: "Отправить документы на анализ" })
+    .getByRole("button", { name: "Загрузить и начать анализ" })
     .click();
   await expect(
     page.getByRole("region", { name: "Замечания по графам" }),

@@ -17,9 +17,11 @@ test("login, upload, analyze, fill missing details, download XML and reopen on m
   const overview = page.locator("details").filter({
     has: page.getByText("Как подготовить первую декларацию", { exact: true }),
   });
-  await expect(overview).toHaveJSProperty("open", true);
-  await expect(overview.getByRole("listitem")).toHaveCount(3);
+  const navigation = await (await page.request.get("/api/declaration-navigation")).json();
+  await expect(overview).toHaveJSProperty("open", !navigation.declarations.length);
   const summary = overview.locator("summary");
+  if (navigation.declarations.length) await summary.click();
+  await expect(overview.getByRole("listitem")).toHaveCount(3);
   await summary.focus();
   await page.keyboard.press("Enter");
   await expect(overview).toHaveJSProperty("open", false);
@@ -47,7 +49,7 @@ test("login, upload, analyze, fill missing details, download XML and reopen on m
   await page.locator('input[type="file"]').setInputFiles({
     name: "invoice.txt", mimeType: "text/plain", buffer: Buffer.from("Pump P1 100 kg 50 EUR. Declarant: QA Company"),
   });
-  await page.getByRole("button", { name: "Отправить документы на анализ" }).click();
+  await page.getByRole("button", { name: "Загрузить и начать анализ" }).click();
   const review = page.getByRole("region", {name: "Замечания по графам"});
   const reviewGuide = page.locator("details").filter({
     has: page.getByText("Как проверить черновик", { exact: true }),
