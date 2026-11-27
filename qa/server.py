@@ -38,7 +38,7 @@ def fixture_response(stage, connection, system, text, image=None):
         result={"requests":[i for i,q in enumerate(payload["requests"]) if q["topic"]=="origin"],"corrections":[]}
     elif isinstance(payload,dict) and "parties" in payload:
         result={"changes":[],"issues":[]}
-    elif isinstance(payload,dict) and set(payload)=={"rows"}:
+    elif isinstance(payload,dict) and set(payload) in ({"rows"}, {"rows", "sources"}):
         result={"facts":[],"issues":[]}
     elif "segments" in payload:
         segment = payload["segments"][0]
