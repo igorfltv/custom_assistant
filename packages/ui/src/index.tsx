@@ -16,6 +16,7 @@ import {
   Users,
   ChartNoAxesCombined,
   MessagesSquare,
+  Activity,
   LogOut,
   X,
   LoaderCircle,
@@ -535,6 +536,7 @@ export function Shell({
         ["/companies", "Компании", Files],
         ["/team", "Сотрудники", Users],
         ["/dialogs", "Журнал диалогов", MessagesSquare],
+        ["/debug", "Отладка агента", Activity],
         ["/memory", "Память пользователей", NotebookText],
         ["/stats", "Статистика", ChartNoAxesCombined],
       ]
